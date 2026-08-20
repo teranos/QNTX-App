@@ -1,0 +1,99 @@
+name: testflight
+
+run-name: testflight ${{ inputs.tag }} ${{ inputs.ground }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'QNTX tag to build'
+        type: string
+        required: true
+      backend_url:
+        description: 'API origin baked into the bundle'
+        type: string
+        required: true
+      ground:
+        description: 'the performance and rite that dispatched this'
+        type: string
+        default: ''
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The shell carries no crates and no frontend. Both come from the tag.
+      - uses: actions/checkout@v5
+        with:
+          repository: teranos/QNTX
+          ref: ${{ inputs.tag }}
+          path: qntx
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'v0.13.1'
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+
+      - name: Build the bundle the app carries
+        working-directory: qntx
+        env:
+          BACKEND_URL: ${{ inputs.backend_url }}
+        run: make web
+
+      - run: cargo install tauri-cli --version "=2.11.4"
+
+      - run: cargo tauri ios init
+
+      - name: Sign against the profile, not an account
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+          PROVISIONING_PROFILE: ${{ vars.PROVISIONING_PROFILE }}
+        run: |
+          python3 .github/scripts/ios-project.py gen/apple/project.yml
+          cd gen/apple && xcodegen generate
+
+      - name: Build signed IPA
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          cargo tauri ios build \
+            --export-method app-store-connect \
+            --build-number ${{ github.run_number }}
+
+      - name: Locate IPA
+        id: ipa
+        run: |
+          FOUND=$(find . -name '*.ipa' -type f | head -1)
+          if [ -z "$FOUND" ]; then
+            find gen/apple/build -type f 2>/dev/null
+            echo "no ipa produced"
+            exit 1
+          fi
+          echo "path=$FOUND" >> "$GITHUB_OUTPUT"
+          echo "Found $FOUND"
+
+      - name: Upload to TestFlight
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APPLE_API_KEY_CONTENT" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8
+          xcrun altool --upload-app \
+            -f "${{ steps.ipa.outputs.path }}" \
+            --api-key "$APPLE_API_KEY" \
+            --api-issuer "$APPLE_API_ISSUER"

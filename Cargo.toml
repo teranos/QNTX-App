@@ -1,0 +1,47 @@
+[package]
+name = "qntx-app"
+version = "0.2.44"
+description = "QNTX Application (Desktop & Mobile)"
+authors = ["Sebastiaan Brandon van Houten <me@sbvh.nl>"]
+license = "MIT"
+repository = "https://github.com/teranos/QNTX-App"
+edition = "2021"
+
+[lib]
+name = "qntx_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "qntx"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# QNTX is checked out beside this, at the tag being built. The shell carries no
+# copy of these and has no version of its own to pin them to.
+qntx-proto = { path = "qntx/crates/qntx-proto" }
+qntx-grpc = { path = "qntx/crates/qntx-grpc", default-features = true }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+tauri = { version = "=2.11.5", features = ["tray-icon", "image-ico", "image-png"] }
+tauri-plugin-shell = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-log = "2"
+
+# Desktop-only plugins (not available on iOS/Android)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-deep-link = "2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
