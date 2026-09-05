@@ -36,11 +36,6 @@ jobs:
           targets: wasm32-unknown-unknown, aarch64-apple-ios
           components: clippy
 
-      # The wall in Cargo.toml is a list of denials, and this is what asks it.
-      # Nothing had, and the lib failed its own first line.
-      - name: The lib answers for every error
-        run: cargo clippy --lib --target aarch64-apple-ios
-
       - uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: 'v0.13.1'
@@ -54,6 +49,11 @@ jobs:
         env:
           BACKEND_URL: ${{ inputs.backend_url }}
         run: make web
+
+      # The wall in Cargo.toml is a list of denials, and this is what asks it.
+      # After the bundle: generate_context! refuses a frontendDist that is not there.
+      - name: The lib answers for every error
+        run: cargo clippy --lib --target aarch64-apple-ios
 
       # The release binary, not a six-minute compile of the CLI on every run.
       - name: Fetch tauri-cli 2.11.4
