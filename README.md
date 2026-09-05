@@ -14,12 +14,6 @@ the tag being built. `Cargo.toml` and `frontendDist` both reach across into it.
 git clone https://github.com/teranos/QNTX qntx
 ```
 
-## Which node it talks to
-
-None, by itself. iOS ships no sidecar, so the API origin is baked into the
-bundle at build time and the deployment that owns that origin supplies it. The
-app is a client of a node someone else decided on.
-
 ## What signs it
 
 An Apple distribution certificate and an App Store provisioning profile, held
