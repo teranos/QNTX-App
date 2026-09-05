@@ -18,6 +18,12 @@ git clone https://github.com/teranos/QNTX qntx
 
 The tag. The workflow writes it into `tauri.conf.json` before the build.
 
+## What the store requires of the door
+
+Guideline 4.8: an app that signs people in with Google must also offer Sign
+in with Apple. The node offers Apple wherever it offers Google, so the App
+does.
+
 ## What signs it
 
 An Apple distribution certificate and an App Store provisioning profile, held
