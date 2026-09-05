@@ -14,6 +14,10 @@ the tag being built. `Cargo.toml` and `frontendDist` both reach across into it.
 git clone https://github.com/teranos/QNTX qntx
 ```
 
+## What version it is
+
+The tag. The workflow writes it into `tauri.conf.json` before the build.
+
 ## What signs it
 
 An Apple distribution certificate and an App Store provisioning profile, held

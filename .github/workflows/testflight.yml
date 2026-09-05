@@ -51,6 +51,14 @@ jobs:
 
       - run: cargo install tauri-cli --version "=2.11.4"
 
+      # Apple orders uploads by version, then by build within it. A version
+      # that rises with the tag never collides with an earlier upload.
+      - name: The app is the tag it was built from
+        run: |
+          v="${{ inputs.tag }}"
+          v="${v#v}"
+          python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "$v"
+
       - run: cargo tauri ios init
 
       - name: Sign against the profile, not an account
