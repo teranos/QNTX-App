@@ -5,6 +5,9 @@
   "identifier": "nl.sbvh.qntx",
   "plugins": {
     "deep-link": {
+      "mobile": [
+        { "scheme": ["qntx"] }
+      ],
       "desktop": {
         "schemes": ["qntx"]
       }
