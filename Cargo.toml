@@ -44,6 +44,32 @@ tauri-plugin-single-instance = "2"
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
+# QNTX's wall, and further. This is the one code that runs on a phone with no
+# log anyone reads, so a dropped error reaches a person as the app closing.
+[lints.rust]
+warnings = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+
 [lints.clippy]
+# The ones that panic.
 unwrap_used = "deny"
 expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+arithmetic_side_effects = "deny"
+# The ones that drop a failure and carry on.
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+let_underscore_future = "deny"
+unused_result_ok = "deny"
+map_err_ignore = "deny"
+match_wild_err_arm = "deny"
+unwrap_in_result = "deny"
+# The one that truncates: a read or write that moved fewer bytes than asked.
+unused_io_amount = "deny"
+dbg_macro = "deny"

@@ -13,10 +13,11 @@ mod android;
 // Desktop continues to use the main.rs binary
 
 // The entry point answers to nobody, so a Tauri that will not run ends the
-// process with the reason on it rather than an expect the crate denies.
+// process with the reason on stderr, which iOS keeps in the device log.
 fn ran(result: tauri::Result<()>) {
     if let Err(err) = result {
-        panic!("tauri application did not run: {err}");
+        eprintln!("tauri application did not run: {err}");
+        std::process::exit(1);
     }
 }
 

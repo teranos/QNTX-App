@@ -33,7 +33,13 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown, aarch64-apple-ios
+          components: clippy
+
+      # The wall in Cargo.toml is a list of denials, and this is what asks it.
+      # Nothing had, and the lib failed its own first line.
+      - name: The lib answers for every error
+        run: cargo clippy --lib --target aarch64-apple-ios
 
       - uses: jetli/wasm-pack-action@v0.4.0
         with:
