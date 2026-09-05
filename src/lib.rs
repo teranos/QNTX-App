@@ -17,12 +17,30 @@ mod android;
 fn ran(result: tauri::Result<()>) {
     if let Err(err) = result {
         eprintln!("tauri application did not run: {err}");
+        sentry::capture_error(&err);
+        // exit runs no destructors, so the guard never flushes; this does.
+        if let Some(client) = sentry::Hub::current().client() {
+            let flushed = client.close(Some(std::time::Duration::from_secs(2)));
+            if !flushed {
+                eprintln!("the failure above did not reach sentry within 2s");
+            }
+        }
         std::process::exit(1);
     }
 }
 
+// A DSN is an ingest key: it can only write, which is why it stands here as a
+// literal, the way the node's does in am.toml. The release is the QNTX tag the
+// workflow built from, so an event says which frontend it was carrying.
+const SENTRY_DSN: &str = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mut options = sentry::ClientOptions::default();
+    options.release = option_env!("QNTX_TAG").map(Into::into).or_else(|| sentry::release_name!());
+    options.send_default_pii = true;
+    let _sentry = sentry::init((SENTRY_DSN, options));
+
     // Initialize platform-specific features
     #[cfg(target_os = "ios")]
     ios::init();

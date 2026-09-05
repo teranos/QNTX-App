@@ -70,6 +70,7 @@ jobs:
           v="${{ inputs.tag }}"
           v="${v#v}"
           python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "$v"
+          echo "QNTX_TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
 
       - run: cargo tauri ios init
 
