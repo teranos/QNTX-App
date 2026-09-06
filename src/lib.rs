@@ -53,6 +53,7 @@ pub fn run() {
     {
         ran(tauri::Builder::default()
             .plugin(tauri_plugin_shell::init())
+            .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
             // qntx:// opened by Safari lands here as a deep-link://new-url event.
             .plugin(tauri_plugin_deep_link::init())
@@ -71,6 +72,7 @@ pub fn run() {
         // Ensure android_request_permissions is called before sending notifications
         ran(tauri::Builder::default()
             .plugin(tauri_plugin_shell::init())
+            .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
             .invoke_handler(tauri::generate_handler![
                 android::android_authenticate_biometric,
@@ -86,6 +88,7 @@ pub fn run() {
     {
         ran(tauri::Builder::default()
             .plugin(tauri_plugin_shell::init())
+            .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
             .run(tauri::generate_context!()));
     }

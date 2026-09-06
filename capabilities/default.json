@@ -29,6 +29,6 @@
     "notification:allow-notify",
     "notification:allow-show",
     "deep-link:default",
-    "shell:allow-open"
+    "opener:allow-open-url"
   ]
 }

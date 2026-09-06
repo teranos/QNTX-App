@@ -31,6 +31,9 @@ tauri = { version = "=2.11.5", features = ["tray-icon", "image-ico", "image-png"
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-log = "2"
+# Opens a URL in the system browser, natively on every target.
+# https://v2.tauri.app/plugin/opener/
+tauri-plugin-opener = "=2.5.5"
 # On every target: qntx:// is how a ceremony finished in Safari comes back
 # into the app on a phone, carrying its ticket.
 tauri-plugin-deep-link = "=2.4.10"
