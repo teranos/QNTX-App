@@ -11,7 +11,7 @@ struct RunArgs: Decodable {
 // The sheet iOS gives a web sign-in. It shares Safari's cookies and passkeys,
 // and hands back the URL the node redirects it to, so the ticket arrives here
 // and not through a deep link into a relaunched app.
-class CeremonyPlugin: Plugin {
+class Sheet: Plugin {
   // Held until the sheet calls back. A session nobody holds is released
   // before it opens, and then never calls back.
   private var session: ASWebAuthenticationSession?
@@ -59,7 +59,7 @@ class Anchor: NSObject, ASWebAuthenticationPresentationContextProviding {
   }
 }
 
-@_cdecl("init_plugin_ceremony")
+@_cdecl("init_sheet")
 func initPlugin() -> Plugin {
-  return CeremonyPlugin()
+  return Sheet()
 }

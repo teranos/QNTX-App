@@ -1,9 +1,9 @@
 [package]
-name = "tauri-plugin-ceremony"
+name = "sheet"
 version = "0.1.0"
 description = "The provider ceremony in the sheet iOS gives a web sign-in"
 edition = "2021"
-links = "tauri-plugin-ceremony"
+links = "sheet"
 
 [dependencies]
 tauri = "=2.11.5"
