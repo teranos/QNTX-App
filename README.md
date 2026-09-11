@@ -2,21 +2,30 @@
 
 The shell QNTX runs inside on a phone and a desktop. A WKWebView on iOS, a
 WebView on Android, a window on macOS — and in every case the thing you look at
-is QNTX's own frontend, built from a tag and carried inside the bundle.
+is QNTX's own frontend, built from QNTX main and carried inside the bundle.
 
 ## It does not build alone
 
 There are no crates here and no frontend. Both come from
 [QNTX](https://github.com/teranos/QNTX), checked out at `qntx/` beside this, at
-the tag being built. `Cargo.toml` and `frontendDist` both reach across into it.
+main. `Cargo.toml` and `frontendDist` both reach across into it. QNTX knows
+nothing of this repo; this repo is what reaches over.
 
 ```
 git clone https://github.com/teranos/QNTX qntx
 ```
 
+## When it builds
+
+On every push here, and on dispatch. Either way it carries QNTX main as it is
+at that moment.
+
 ## What version it is
 
-The tag. The workflow writes it into `tauri.conf.json` before the build.
+QNTX's newest release tag, with the run number as the build. The workflow
+writes the version into `tauri.conf.json` before the build. What was actually
+built is `git describe` on main, and that is the release an event in Sentry
+names.
 
 ## What the store requires of the door
 

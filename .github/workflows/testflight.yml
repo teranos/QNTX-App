@@ -1,21 +1,18 @@
 name: testflight
 
-run-name: testflight ${{ inputs.tag || github.ref_name }} ${{ inputs.ground }}
+run-name: testflight ${{ github.ref_name }} ${{ inputs.ground }}
 
-# A push to the shell is a build. The rite dispatches with a tag when QNTX
-# releases; a push here names none and gets QNTX's newest.
+# A push to the shell is a build, and a build carries QNTX main. Always main:
+# "When App builds, I expect it to build from latest main QNTX always."
+# QNTX knows nothing of this repo; this repo is what reaches over.
 on:
   push:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'QNTX tag to build'
-        type: string
-        required: true
       backend_url:
         description: 'API origin baked into the bundle'
         type: string
-        required: true
+        default: 'https://api.q.sbvh.nl'
       ground:
         description: 'the performance and rite that dispatched this'
         type: string
@@ -27,25 +24,30 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: The tag to build
-        id: tag
-        run: |
-          tag="${{ inputs.tag }}"
-          if [ -z "$tag" ]; then
-            tag=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'refs/tags/v*' | cut -d/ -f3 | sort -V | tail -1)
-          fi
-          test -n "$tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "QNTX_TAG=$tag" >> "$GITHUB_ENV"
-          echo "backend_url=${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}" >> "$GITHUB_OUTPUT"
-          echo "building $tag"
-
-      # The shell carries no crates and no frontend. Both come from the tag.
+      # The shell carries no crates and no frontend. Both come from main.
+      # Full history: what main is gets described against the tags below it.
       - uses: actions/checkout@v5
         with:
           repository: teranos/QNTX
-          ref: ${{ steps.tag.outputs.tag }}
+          ref: main
           path: qntx
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Apple orders uploads by version, then by build within it. The version
+      # is QNTX's newest release; the build is the run, which only rises. What
+      # was actually built is the describe, and that is what an event names.
+      - name: What main is
+        id: qntx
+        working-directory: qntx
+        run: |
+          built=$(git describe --tags --match 'v*')
+          version=$(git tag -l 'v*' | sort -V | tail -1)
+          test -n "$built" && test -n "$version"
+          echo "built=$built" >> "$GITHUB_OUTPUT"
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+          echo "QNTX_TAG=$built" >> "$GITHUB_ENV"
+          echo "building $built as $version"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -63,7 +65,7 @@ jobs:
       - name: Build the bundle the app carries
         working-directory: qntx
         env:
-          BACKEND_URL: ${{ steps.tag.outputs.backend_url }}
+          BACKEND_URL: ${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}
         run: make web
 
       # The wall in Cargo.toml is a list of denials, and this is what asks it.
@@ -79,13 +81,9 @@ jobs:
           rm cargo-tauri.zip
           cargo tauri --version
 
-      # Apple orders uploads by version, then by build within it. A version
-      # that rises with the tag never collides with an earlier upload.
-      - name: The app is the tag it was built from
+      - name: The app is versioned as QNTX's newest release
         run: |
-          v="${{ steps.tag.outputs.tag }}"
-          v="${v#v}"
-          python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "$v"
+          python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "${{ steps.qntx.outputs.version }}"
 
       - run: cargo tauri ios init
 
