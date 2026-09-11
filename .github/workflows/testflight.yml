@@ -1,8 +1,11 @@
 name: testflight
 
-run-name: testflight ${{ inputs.tag }} ${{ inputs.ground }}
+run-name: testflight ${{ inputs.tag || github.ref_name }} ${{ inputs.ground }}
 
+# A push to the shell is a build. The rite dispatches with a tag when QNTX
+# releases; a push here names none and gets QNTX's newest.
 on:
+  push:
   workflow_dispatch:
     inputs:
       tag:
@@ -24,11 +27,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: The tag to build
+        id: tag
+        run: |
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then
+            tag=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'refs/tags/v*' | cut -d/ -f3 | sort -V | tail -1)
+          fi
+          test -n "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "QNTX_TAG=$tag" >> "$GITHUB_ENV"
+          echo "backend_url=${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}" >> "$GITHUB_OUTPUT"
+          echo "building $tag"
+
       # The shell carries no crates and no frontend. Both come from the tag.
       - uses: actions/checkout@v5
         with:
           repository: teranos/QNTX
-          ref: ${{ inputs.tag }}
+          ref: ${{ steps.tag.outputs.tag }}
           path: qntx
 
       - uses: dtolnay/rust-toolchain@stable
@@ -47,7 +63,7 @@ jobs:
       - name: Build the bundle the app carries
         working-directory: qntx
         env:
-          BACKEND_URL: ${{ inputs.backend_url }}
+          BACKEND_URL: ${{ steps.tag.outputs.backend_url }}
         run: make web
 
       # The wall in Cargo.toml is a list of denials, and this is what asks it.
@@ -67,10 +83,9 @@ jobs:
       # that rises with the tag never collides with an earlier upload.
       - name: The app is the tag it was built from
         run: |
-          v="${{ inputs.tag }}"
+          v="${{ steps.tag.outputs.tag }}"
           v="${v#v}"
           python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "$v"
-          echo "QNTX_TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
 
       - run: cargo tauri ios init
 
