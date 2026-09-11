@@ -1,37 +1,88 @@
 name: testflight
 
-run-name: testflight ${{ inputs.tag }} ${{ inputs.ground }}
+run-name: testflight ${{ github.ref_name }} ${{ inputs.ground }}
 
+# A push to the shell is a build, and a build carries QNTX main. Always main:
+# "When App builds, I expect it to build from latest main QNTX always."
+# QNTX knows nothing of this repo; this repo is what reaches over, and it
+# reaches over on a clock too, so that main moving is enough for a build:
+# "I want App deploys to be entirely frictionless."
 on:
+  push:
+  schedule:
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'QNTX tag to build'
-        type: string
-        required: true
       backend_url:
         description: 'API origin baked into the bundle'
         type: string
-        required: true
+        default: 'https://api.q.sbvh.nl'
       ground:
         description: 'the performance and rite that dispatched this'
         type: string
         default: ''
 
 jobs:
+  # Where main is, and whether that was built already. A push or a dispatch
+  # builds regardless; the clock builds only what moved. The mark of a build
+  # is a cache entry named after the commit, saved at the end of one.
+  main:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.main.outputs.sha }}
+      build: ${{ github.event_name != 'schedule' || steps.built.outputs.cache-hit != 'true' }}
+    steps:
+      - name: Where main is
+        id: main
+        run: |
+          sha=$(git ls-remote https://github.com/teranos/QNTX refs/heads/main | cut -f1)
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "main is $sha"
+
+      - name: Whether it was built
+        id: built
+        uses: actions/cache/restore@v4
+        with:
+          path: built
+          key: built-${{ steps.main.outputs.sha }}
+          lookup-only: true
+
   build:
+    needs: main
+    if: needs.main.outputs.build == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
-      # The shell carries no crates and no frontend. Both come from the tag.
+      # The shell carries no crates and no frontend. Both come from main, at
+      # the commit the job above saw, so the mark and the build agree.
+      # Full history: what main is gets described against the tags below it.
       - uses: actions/checkout@v5
         with:
           repository: teranos/QNTX
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.main.outputs.sha }}
           path: qntx
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Apple orders uploads by version, then by build within it. The version
+      # is QNTX's newest release; the build is the run, which only rises. What
+      # was actually built is the describe, and that is what an event names.
+      - name: What main is
+        id: qntx
+        working-directory: qntx
+        run: |
+          built=$(git describe --tags --match 'v*')
+          version=$(git tag -l 'v*' | sort -V | tail -1)
+          test -n "$built" && test -n "$version"
+          echo "built=$built" >> "$GITHUB_OUTPUT"
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+          echo "QNTX_TAG=$built" >> "$GITHUB_ENV"
+          echo "building $built as $version"
 
       - uses: dtolnay/rust-toolchain@stable
+        id: rust
         with:
           targets: wasm32-unknown-unknown, aarch64-apple-ios
           components: clippy
@@ -44,10 +95,42 @@ jobs:
         with:
           bun-version: '1.3.3'
 
+      # What was already compiled is reused. make cannot tell whether ats or
+      # laye changed, every target of it is phony; cargo can, given its target
+      # dir back. Keyed on what the wasm is a function of: the crates and the
+      # lockfile. A miss on the key still restores the latest of the toolchain,
+      # so one crate changing recompiles that crate and not every dependency.
+      - name: The wasm compiled last time
+        uses: actions/cache@v4
+        with:
+          path: |
+            qntx/target
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: wasm-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('qntx/Cargo.lock', 'qntx/crates/**') }}
+          restore-keys: |
+            wasm-${{ steps.rust.outputs.cachekey }}-
+
+      # The same for the shell: clippy and the IPA both compile tauri, sentry
+      # and the two QNTX path crates into target/. qntx-proto and qntx-grpc are
+      # path dependencies, so their sources are part of the key.
+      - name: The shell compiled last time
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: shell-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'qntx/crates/**') }}
+          restore-keys: |
+            shell-${{ steps.rust.outputs.cachekey }}-
+
+      # The frontend leaves to the same project the shell does (src/lib.rs):
+      # a phone has no console, and without a DSN the door's failures reached
+      # nobody but a screenshot. A DSN only writes, so it sits here as a literal.
       - name: Build the bundle the app carries
         working-directory: qntx
         env:
-          BACKEND_URL: ${{ inputs.backend_url }}
+          BACKEND_URL: ${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}
+          SENTRY_DSN: https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992
         run: make web
 
       # The wall in Cargo.toml is a list of denials, and this is what asks it.
@@ -63,14 +146,9 @@ jobs:
           rm cargo-tauri.zip
           cargo tauri --version
 
-      # Apple orders uploads by version, then by build within it. A version
-      # that rises with the tag never collides with an earlier upload.
-      - name: The app is the tag it was built from
+      - name: The app is versioned as QNTX's newest release
         run: |
-          v="${{ inputs.tag }}"
-          v="${v#v}"
-          python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "$v"
-          echo "QNTX_TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
+          python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "${{ steps.qntx.outputs.version }}"
 
       - run: cargo tauri ios init
 
@@ -118,3 +196,27 @@ jobs:
             -f "${{ steps.ipa.outputs.path }}" \
             --api-key "$APPLE_API_KEY" \
             --api-issuer "$APPLE_API_ISSUER"
+
+      # altool exits 0 when Apple has the bytes, and nothing after that reached
+      # any log: ten green runs sat in App Store Connect as
+      # MISSING_EXPORT_COMPLIANCE while the phone stayed on build 8. Green
+      # means a tester can install it, or the run is red and says why.
+      - name: Delivered to testers
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          BUILD: ${{ steps.qntx.outputs.version }}.${{ github.run_number }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/asc"
+          "$RUNNER_TEMP/asc/bin/pip" install --quiet 'pyjwt[crypto]' requests
+          "$RUNNER_TEMP/asc/bin/python" .github/scripts/delivered.py wait "$BUILD"
+
+      # The mark the clock looks for: this commit of main is on TestFlight.
+      - name: Mark main as built
+        run: echo "${{ github.run_number }}" > built
+
+      - uses: actions/cache/save@v4
+        with:
+          path: built
+          key: built-${{ needs.main.outputs.sha }}

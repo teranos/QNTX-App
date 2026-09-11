@@ -1,0 +1,40 @@
+[package]
+name = "tauri-plugin-ceremony"
+version = "0.1.0"
+description = "The provider ceremony in the sheet iOS gives a web sign-in"
+edition = "2021"
+links = "tauri-plugin-ceremony"
+
+[dependencies]
+tauri = "=2.11.5"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "=2.6.3", features = ["build"] }
+
+# The same wall as the shell: this runs on a phone with no log anyone reads.
+[lints.rust]
+warnings = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+arithmetic_side_effects = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+let_underscore_future = "deny"
+unused_result_ok = "deny"
+map_err_ignore = "deny"
+match_wild_err_arm = "deny"
+unwrap_in_result = "deny"
+unused_io_amount = "deny"
+dbg_macro = "deny"
