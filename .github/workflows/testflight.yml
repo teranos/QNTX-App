@@ -50,6 +50,7 @@ jobs:
           echo "building $built as $version"
 
       - uses: dtolnay/rust-toolchain@stable
+        id: rust
         with:
           targets: wasm32-unknown-unknown, aarch64-apple-ios
           components: clippy
@@ -61,6 +62,34 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.3'
+
+      # What was already compiled is reused. make cannot tell whether ats or
+      # laye changed, every target of it is phony; cargo can, given its target
+      # dir back. Keyed on what the wasm is a function of: the crates and the
+      # lockfile. A miss on the key still restores the latest of the toolchain,
+      # so one crate changing recompiles that crate and not every dependency.
+      - name: The wasm compiled last time
+        uses: actions/cache@v4
+        with:
+          path: |
+            qntx/target
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: wasm-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('qntx/Cargo.lock', 'qntx/crates/**') }}
+          restore-keys: |
+            wasm-${{ steps.rust.outputs.cachekey }}-
+
+      # The same for the shell: clippy and the IPA both compile tauri, sentry
+      # and the two QNTX path crates into target/. qntx-proto and qntx-grpc are
+      # path dependencies, so their sources are part of the key.
+      - name: The shell compiled last time
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: shell-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'qntx/crates/**') }}
+          restore-keys: |
+            shell-${{ steps.rust.outputs.cachekey }}-
 
       # The frontend leaves to the same project the shell does (src/lib.rs):
       # a phone has no console, and without a DSN the door's failures reached
