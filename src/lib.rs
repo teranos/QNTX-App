@@ -57,6 +57,8 @@ pub fn run() {
             .plugin(tauri_plugin_notification::init())
             // qntx:// opened by Safari lands here as a deep-link://new-url event.
             .plugin(tauri_plugin_deep_link::init())
+            // The ceremony in the system sheet, back without leaving the app.
+            .plugin(tauri_plugin_ceremony::init())
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
                 ios::ios_biometric_available,
@@ -74,6 +76,7 @@ pub fn run() {
             .plugin(tauri_plugin_shell::init())
             .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
+            .plugin(tauri_plugin_ceremony::init())
             .invoke_handler(tauri::generate_handler![
                 android::android_authenticate_biometric,
                 android::android_biometric_available,
@@ -90,6 +93,7 @@ pub fn run() {
             .plugin(tauri_plugin_shell::init())
             .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
+            .plugin(tauri_plugin_ceremony::init())
             .run(tauri::generate_context!()));
     }
 }

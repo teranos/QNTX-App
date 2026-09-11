@@ -30,6 +30,7 @@
     "notification:allow-show",
     "deep-link:default",
     "opener:allow-open-url",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    "ceremony:default"
   ]
 }
