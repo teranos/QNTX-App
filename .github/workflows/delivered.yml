@@ -59,6 +59,7 @@ jobs:
               "fields[betaGroups]": "name",
           })
           side = {(i["type"], i["id"]): i["attributes"] for i in builds.get("included", [])}
+          unanswered = []
           for b in builds["data"]:
               a = b["attributes"]
               rel = b["relationships"]
@@ -68,4 +69,14 @@ jobs:
               print(f"  {ver} ({a['version']})  uploaded {a['uploadedDate']}  processing={a['processingState']}"
                     f"  expired={a['expired']}  nonExemptEncryption={a['usesNonExemptEncryption']}"
                     f"  internal={det.get('internalBuildState')}  external={det.get('externalBuildState')}  groups={groups}")
+              if a["usesNonExemptEncryption"] is None and a["processingState"] == "VALID" and not a["expired"]:
+                  unanswered.append((b["id"], a["version"]))
+
+          # The answer Info.ios.plist gives every build from now on, given to
+          # the builds that were uploaded before it existed.
+          print("\nanswering export compliance for:", [v for _, v in unanswered] or "nothing")
+          for bid, v in unanswered:
+              r = requests.patch(f"{asc}/builds/{bid}", headers={**h, "Content-Type": "application/json"}, timeout=30,
+                                 json={"data": {"type": "builds", "id": bid, "attributes": {"usesNonExemptEncryption": False}}})
+              print(f"  {v}: {r.status_code}" + ("" if r.status_code == 200 else f" {r.text}"))
           EOF
