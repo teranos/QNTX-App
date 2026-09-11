@@ -210,46 +210,7 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/asc"
           "$RUNNER_TEMP/asc/bin/pip" install --quiet 'pyjwt[crypto]' requests
-          "$RUNNER_TEMP/asc/bin/python" - <<'EOF'
-          import base64, os, time, jwt, requests
-
-          key = base64.b64decode(os.environ["APPLE_API_KEY_CONTENT"]).decode()
-          asc = "https://api.appstoreconnect.apple.com/v1"
-          build = os.environ["BUILD"]
-
-          def bearer():
-              now = int(time.time())
-              return {"Authorization": "Bearer " + jwt.encode(
-                  {"iss": os.environ["APPLE_API_ISSUER"], "iat": now, "exp": now + 600, "aud": "appstoreconnect-v1"},
-                  key, algorithm="ES256", headers={"kid": os.environ["APPLE_API_KEY"], "typ": "JWT"})}
-
-          deadline = time.time() + 20 * 60
-          while True:
-              r = requests.get(asc + "/builds", headers=bearer(), timeout=30, params={
-                  "filter[version]": build, "include": "buildBetaDetail",
-                  "fields[builds]": "version,processingState,usesNonExemptEncryption,buildBetaDetail",
-                  "fields[buildBetaDetails]": "internalBuildState,externalBuildState"})
-              if r.status_code != 200:
-                  raise SystemExit(f"App Store Connect answered {r.status_code}: {r.text}")
-              data = r.json()
-              if data["data"]:
-                  b = data["data"][0]["attributes"]
-                  det = next((i["attributes"] for i in data.get("included", []) if i["type"] == "buildBetaDetails"), {})
-                  state = det.get("internalBuildState")
-                  print(f"{build}: processing={b['processingState']} nonExemptEncryption={b['usesNonExemptEncryption']} internal={state}")
-                  if b["processingState"] in ("FAILED", "INVALID"):
-                      raise SystemExit(f"{build} was not accepted: processing {b['processingState']}")
-                  if state == "IN_BETA_TESTING":
-                      print(f"{build} is on TestFlight for the internal group")
-                      break
-                  if state == "MISSING_EXPORT_COMPLIANCE":
-                      raise SystemExit(f"{build} sits in App Store Connect unanswered: Info.ios.plist did not reach the bundle")
-              else:
-                  print(f"{build}: not yet listed")
-              if time.time() > deadline:
-                  raise SystemExit(f"{build} was not delivered to testers within 20 minutes")
-              time.sleep(30)
-          EOF
+          "$RUNNER_TEMP/asc/bin/python" .github/scripts/delivered.py wait "$BUILD"
 
       # The mark the clock looks for: this commit of main is on TestFlight.
       - name: Mark main as built

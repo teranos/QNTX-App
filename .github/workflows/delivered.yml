@@ -12,6 +12,8 @@ jobs:
   ask:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+
       - run: pip install --quiet 'pyjwt[crypto]' requests
 
       - name: What App Store Connect holds for nl.sbvh.qntx
@@ -19,64 +21,4 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
-        run: |
-          python3 - <<'EOF'
-          import base64, os, time, jwt, requests
-
-          key = base64.b64decode(os.environ["APPLE_API_KEY_CONTENT"]).decode()
-          token = jwt.encode(
-              {"iss": os.environ["APPLE_API_ISSUER"], "iat": int(time.time()),
-               "exp": int(time.time()) + 600, "aud": "appstoreconnect-v1"},
-              key, algorithm="ES256",
-              headers={"kid": os.environ["APPLE_API_KEY"], "typ": "JWT"})
-          asc = "https://api.appstoreconnect.apple.com/v1"
-          h = {"Authorization": f"Bearer {token}"}
-
-          def get(path, **params):
-              r = requests.get(asc + path, headers=h, params=params, timeout=30)
-              if r.status_code != 200:
-                  raise SystemExit(f"{path} answered {r.status_code}: {r.text}")
-              return r.json()
-
-          apps = get("/apps", **{"filter[bundleId]": "nl.sbvh.qntx"})["data"]
-          if not apps:
-              raise SystemExit("App Store Connect lists no app with bundle id nl.sbvh.qntx")
-          app = apps[0]["id"]
-          print("app", app, apps[0]["attributes"]["name"])
-
-          print("\nbeta groups:")
-          for g in get(f"/apps/{app}/betaGroups")["data"]:
-              a = g["attributes"]
-              print(f"  {a['name']!r} internal={a['isInternalGroup']} allBuilds={a.get('hasAccessToAllBuilds')} id={g['id']}")
-
-          print("\nbuilds, newest first:")
-          builds = get("/builds", **{
-              "filter[app]": app, "sort": "-uploadedDate", "limit": 12,
-              "include": "buildBetaDetail,preReleaseVersion,betaGroups",
-              "fields[builds]": "version,uploadedDate,processingState,expired,usesNonExemptEncryption,buildBetaDetail,preReleaseVersion,betaGroups",
-              "fields[buildBetaDetails]": "internalBuildState,externalBuildState",
-              "fields[preReleaseVersions]": "version",
-              "fields[betaGroups]": "name",
-          })
-          side = {(i["type"], i["id"]): i["attributes"] for i in builds.get("included", [])}
-          unanswered = []
-          for b in builds["data"]:
-              a = b["attributes"]
-              rel = b["relationships"]
-              ver = side.get(("preReleaseVersions", (rel["preReleaseVersion"]["data"] or {}).get("id")), {}).get("version")
-              det = side.get(("buildBetaDetails", (rel["buildBetaDetail"]["data"] or {}).get("id")), {})
-              groups = [side.get(("betaGroups", g["id"]), {}).get("name") for g in rel["betaGroups"]["data"]]
-              print(f"  {ver} ({a['version']})  uploaded {a['uploadedDate']}  processing={a['processingState']}"
-                    f"  expired={a['expired']}  nonExemptEncryption={a['usesNonExemptEncryption']}"
-                    f"  internal={det.get('internalBuildState')}  external={det.get('externalBuildState')}  groups={groups}")
-              if a["usesNonExemptEncryption"] is None and a["processingState"] == "VALID" and not a["expired"]:
-                  unanswered.append((b["id"], a["version"]))
-
-          # The answer Info.ios.plist gives every build from now on, given to
-          # the builds that were uploaded before it existed.
-          print("\nanswering export compliance for:", [v for _, v in unanswered] or "nothing")
-          for bid, v in unanswered:
-              r = requests.patch(f"{asc}/builds/{bid}", headers={**h, "Content-Type": "application/json"}, timeout=30,
-                                 json={"data": {"type": "builds", "id": bid, "attributes": {"usesNonExemptEncryption": False}}})
-              print(f"  {v}: {r.status_code}" + ("" if r.status_code == 200 else f" {r.text}"))
-          EOF
+        run: python3 .github/scripts/delivered.py list
