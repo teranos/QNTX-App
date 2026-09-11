@@ -1,0 +1,71 @@
+name: delivered
+
+# What App Store Connect did with what was uploaded. The upload step exits 0
+# and the build then leaves every log this repo can read; a phone that stays
+# on an old build is a fault on this side, and this is the side asking.
+# "I keep saying the issue isn't phone side."
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  ask:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pip install --quiet 'pyjwt[crypto]' requests
+
+      - name: What App Store Connect holds for nl.sbvh.qntx
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          python3 - <<'EOF'
+          import base64, os, time, jwt, requests
+
+          key = base64.b64decode(os.environ["APPLE_API_KEY_CONTENT"]).decode()
+          token = jwt.encode(
+              {"iss": os.environ["APPLE_API_ISSUER"], "iat": int(time.time()),
+               "exp": int(time.time()) + 600, "aud": "appstoreconnect-v1"},
+              key, algorithm="ES256",
+              headers={"kid": os.environ["APPLE_API_KEY"], "typ": "JWT"})
+          asc = "https://api.appstoreconnect.apple.com/v1"
+          h = {"Authorization": f"Bearer {token}"}
+
+          def get(path, **params):
+              r = requests.get(asc + path, headers=h, params=params, timeout=30)
+              if r.status_code != 200:
+                  raise SystemExit(f"{path} answered {r.status_code}: {r.text}")
+              return r.json()
+
+          apps = get("/apps", **{"filter[bundleId]": "nl.sbvh.qntx"})["data"]
+          if not apps:
+              raise SystemExit("App Store Connect lists no app with bundle id nl.sbvh.qntx")
+          app = apps[0]["id"]
+          print("app", app, apps[0]["attributes"]["name"])
+
+          print("\nbeta groups:")
+          for g in get(f"/apps/{app}/betaGroups")["data"]:
+              a = g["attributes"]
+              print(f"  {a['name']!r} internal={a['isInternalGroup']} allBuilds={a.get('hasAccessToAllBuilds')} id={g['id']}")
+
+          print("\nbuilds, newest first:")
+          builds = get("/builds", **{
+              "filter[app]": app, "sort": "-uploadedDate", "limit": 12,
+              "include": "buildBetaDetail,preReleaseVersion,betaGroups",
+              "fields[builds]": "version,uploadedDate,processingState,expired,usesNonExemptEncryption,buildBetaDetail,preReleaseVersion,betaGroups",
+              "fields[buildBetaDetails]": "internalBuildState,externalBuildState",
+              "fields[preReleaseVersions]": "version",
+              "fields[betaGroups]": "name",
+          })
+          side = {(i["type"], i["id"]): i["attributes"] for i in builds.get("included", [])}
+          for b in builds["data"]:
+              a = b["attributes"]
+              rel = b["relationships"]
+              ver = side.get(("preReleaseVersions", (rel["preReleaseVersion"]["data"] or {}).get("id")), {}).get("version")
+              det = side.get(("buildBetaDetails", (rel["buildBetaDetail"]["data"] or {}).get("id")), {})
+              groups = [side.get(("betaGroups", g["id"]), {}).get("name") for g in rel["betaGroups"]["data"]]
+              print(f"  {ver} ({a['version']})  uploaded {a['uploadedDate']}  processing={a['processingState']}"
+                    f"  expired={a['expired']}  nonExemptEncryption={a['usesNonExemptEncryption']}"
+                    f"  internal={det.get('internalBuildState')}  external={det.get('externalBuildState')}  groups={groups}")
+          EOF
