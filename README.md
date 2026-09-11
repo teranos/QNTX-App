@@ -39,9 +39,11 @@ The app's page is at a scheme, so a provider's page inside its WebView has no
 Safari session, no autofill and no passkey. On iOS the ceremony runs in the
 sheet the system gives a web sign-in, `ASWebAuthenticationSession`, which is
 backed by Safari's cookies and passkeys and hands the callback URL straight
-back into the app. That is `plugins/ceremony`: one command, `run`. Off iOS
-the command says there is no sheet, and the door opens Safari and waits for
-the `qntx://` deep link instead.
+back into the app. That is `sheet/`: one command, `run`. Not a plugin in
+the QNTX sense, nothing runs beside the node; it is the App's own Swift,
+registered the way Tauri registers native code. Off iOS the command says
+there is no sheet, and the door opens Safari and waits for the `qntx://` deep
+link instead.
 
 ## What the pipeline proves
 

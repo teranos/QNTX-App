@@ -31,6 +31,6 @@
     "deep-link:default",
     "opener:allow-open-url",
     "opener:allow-default-urls",
-    "ceremony:default"
+    "sheet:default"
   ]
 }

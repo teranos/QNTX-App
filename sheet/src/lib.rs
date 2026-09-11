@@ -1,4 +1,4 @@
-//! The provider ceremony, in the sheet iOS gives a web sign-in.
+//! The sheet iOS gives a web sign-in, and the provider ceremony in it.
 //!
 //! The App's page lives at a scheme, so a provider's page inside its WebView
 //! has no Safari session, no autofill and no passkey. The ceremony ran in
@@ -11,6 +11,10 @@
 //! backed by Safari's cookies and passkeys, that hands the callback URL
 //! straight back. One command, `run`, resolves with the URL the node sent the
 //! sheet to. Off iOS there is no sheet, and `run` says so.
+//!
+//! Not a plugin in the QNTX sense: nothing runs beside the node. It is the
+//! App's own Swift, registered the way Tauri registers native code, and the
+//! `plugin:sheet|run` the door invokes is Tauri's routing syntax, not ours.
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -19,11 +23,11 @@ use tauri::{
 };
 
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_ceremony);
+tauri::ios_plugin_binding!(init_sheet);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("the ceremony sheet is not on this platform")]
+    #[error("the sheet is not on this platform")]
     Unsupported,
     #[cfg(target_os = "ios")]
     #[error(transparent)]
@@ -50,14 +54,14 @@ pub struct CameBack {
     pub url: String,
 }
 
-pub struct Ceremony<R: Runtime> {
+pub struct Sheet<R: Runtime> {
     #[cfg(target_os = "ios")]
     handle: tauri::plugin::PluginHandle<R>,
     #[cfg(not(target_os = "ios"))]
     _marker: std::marker::PhantomData<fn() -> R>,
 }
 
-impl<R: Runtime> Ceremony<R> {
+impl<R: Runtime> Sheet<R> {
     #[cfg(target_os = "ios")]
     pub fn run(&self, url: String, scheme: String) -> Result<CameBack, Error> {
         self.handle
@@ -77,22 +81,22 @@ async fn run<R: Runtime>(
     url: String,
     scheme: String,
 ) -> Result<CameBack, Error> {
-    app.state::<Ceremony<R>>().run(url, scheme)
+    app.state::<Sheet<R>>().run(url, scheme)
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("ceremony")
+    Builder::new("sheet")
         .invoke_handler(tauri::generate_handler![run])
         .setup(|app, _api| {
             #[cfg(target_os = "ios")]
-            let ceremony = Ceremony {
-                handle: _api.register_ios_plugin(init_plugin_ceremony)?,
+            let sheet = Sheet {
+                handle: _api.register_ios_plugin(init_sheet)?,
             };
             #[cfg(not(target_os = "ios"))]
-            let ceremony = Ceremony::<R> {
+            let sheet = Sheet::<R> {
                 _marker: std::marker::PhantomData,
             };
-            app.manage(ceremony);
+            app.manage(sheet);
             Ok(())
         })
         .build()

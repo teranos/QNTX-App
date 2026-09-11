@@ -1,5 +1,0 @@
-"$schema" = "schemas/schema.json"
-
-[default]
-description = "The door may run a provider ceremony in the sheet iOS gives a web sign-in"
-permissions = ["allow-run"]

@@ -3,22 +3,22 @@
 import PackageDescription
 
 let package = Package(
-    name: "tauri-plugin-ceremony",
+    name: "sheet",
     platforms: [
         .iOS(.v13),
     ],
     products: [
         .library(
-            name: "tauri-plugin-ceremony",
+            name: "sheet",
             type: .static,
-            targets: ["tauri-plugin-ceremony"]),
+            targets: ["sheet"]),
     ],
     dependencies: [
         .package(name: "Tauri", path: "../.tauri/tauri-api")
     ],
     targets: [
         .target(
-            name: "tauri-plugin-ceremony",
+            name: "sheet",
             dependencies: [
                 .byName(name: "Tauri")
             ],

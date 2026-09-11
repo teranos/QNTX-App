@@ -39,7 +39,7 @@ tauri-plugin-opener = "=2.5.5"
 tauri-plugin-deep-link = "=2.4.10"
 # On iOS the ceremony runs in the sheet the system gives a web sign-in, and
 # comes back without leaving the app. Off iOS it says it cannot.
-tauri-plugin-ceremony = { path = "plugins/ceremony" }
+sheet = { path = "sheet" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
 sentry = "=0.49.2"
