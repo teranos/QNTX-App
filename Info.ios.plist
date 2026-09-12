@@ -8,5 +8,18 @@
          Tauri merges this file into the iOS Info.plist on every build. -->
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+
+    <!-- The brow (QNTX web/ts/brow.ts) is the node's status line in the
+         iPhone's unsafe top region, level with the Dynamic Island:
+         "The shell's only part is granting the territory: status bar hidden,
+          webview edge-to-edge."
+         wry already lays the webview edge to edge. The status bar was never
+         hidden, so iOS drew its clock and indicators over the brow's ears.
+         View-controller-based appearance is off so this key is the whole
+         answer, not a default a controller can override. -->
+    <key>UIStatusBarHidden</key>
+    <true/>
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
 </dict>
 </plist>
