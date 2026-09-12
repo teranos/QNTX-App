@@ -2,15 +2,14 @@ name: testflight
 
 run-name: testflight ${{ github.ref_name }} ${{ inputs.ground }}
 
-# A push to the shell is a build, and a build carries QNTX main. Always main:
+# A push to the shell is a build, a dispatch is a build, and a build carries
+# QNTX main. Always main:
 # "When App builds, I expect it to build from latest main QNTX always."
-# QNTX knows nothing of this repo; this repo is what reaches over, and it
-# reaches over on a clock too, so that main moving is enough for a build:
-# "I want App deploys to be entirely frictionless."
+# QNTX knows nothing of this repo; this repo is what reaches over. Nothing
+# builds unasked: a clock did, once, and spent the day's uploads on its own.
+# "I need the fastest path onto the phone, when I want it."
 on:
   push:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       backend_url:
@@ -23,14 +22,11 @@ on:
         default: ''
 
 jobs:
-  # Where main is, and whether that was built already. A push or a dispatch
-  # builds regardless; the clock builds only what moved. The mark of a build
-  # is a cache entry named after the commit, saved at the end of one.
+  # Where main is, resolved once so the checkout and the build agree on it.
   main:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.main.outputs.sha }}
-      build: ${{ github.event_name != 'schedule' || steps.built.outputs.cache-hit != 'true' }}
     steps:
       - name: Where main is
         id: main
@@ -40,23 +36,14 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "main is $sha"
 
-      - name: Whether it was built
-        id: built
-        uses: actions/cache/restore@v4
-        with:
-          path: built
-          key: built-${{ steps.main.outputs.sha }}
-          lookup-only: true
-
   build:
     needs: main
-    if: needs.main.outputs.build == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
       # The shell carries no crates and no frontend. Both come from main, at
-      # the commit the job above saw, so the mark and the build agree.
+      # the commit the job above saw.
       # Full history: what main is gets described against the tags below it.
       - uses: actions/checkout@v5
         with:
@@ -211,12 +198,3 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/asc"
           "$RUNNER_TEMP/asc/bin/pip" install --quiet 'pyjwt[crypto]' requests
           "$RUNNER_TEMP/asc/bin/python" .github/scripts/delivered.py wait "$BUILD"
-
-      # The mark the clock looks for: this commit of main is on TestFlight.
-      - name: Mark main as built
-        run: echo "${{ github.run_number }}" > built
-
-      - uses: actions/cache/save@v4
-        with:
-          path: built
-          key: built-${{ needs.main.outputs.sha }}
