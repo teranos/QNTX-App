@@ -105,14 +105,20 @@ in
         }
 
         {
-          uses = "android-actions/setup-android@v3";
-        }
-
-        {
-          name = "Install the NDK cargo tauri android build needs";
+          name = "The SDK cargo tauri android needs (android-actions/setup-android asks for a package Google stopped shipping)";
           run = ''
-            sdkmanager --install "ndk;${ndkVersion}"
-            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${ndkVersion}" >> "$GITHUB_ENV"
+            SDK_ROOT="$HOME/android-sdk"
+            curl -sSL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            mkdir -p "$SDK_ROOT/cmdline-tools"
+            unzip -q cmdline-tools.zip -d "$SDK_ROOT/cmdline-tools"
+            mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+            rm cmdline-tools.zip
+            echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+            echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+            echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" --licenses > /dev/null
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-36" "build-tools;35.0.0" "ndk;${ndkVersion}"
+            echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/${ndkVersion}" >> "$GITHUB_ENV"
           '';
         }
 
