@@ -41,6 +41,7 @@ impl Serialize for Error {
 }
 
 /// What the sheet is given: where to go, and the scheme it comes back on.
+#[cfg(target_os = "ios")]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Run {

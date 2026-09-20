@@ -42,7 +42,8 @@ tauri-plugin-deep-link = "=2.4.10"
 sheet = { path = "sheet" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
-sentry = "=0.49.2"
+# rustls, not native-tls: native-tls needs openssl-sys, uncompilable for Android.
+sentry = { version = "=0.49.2", default-features = false, features = ["backtrace", "contexts", "debug-images", "logs", "metrics", "panic", "release-health", "reqwest", "rustls"] }
 
 # Desktop-only plugins (not available on iOS/Android)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
