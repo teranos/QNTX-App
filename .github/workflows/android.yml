@@ -1,0 +1,164 @@
+{
+  "jobs": {
+    "build": {
+      "needs": "main",
+      "permissions": {
+        "contents": "write"
+      },
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "fetch-tags": true,
+            "path": "qntx",
+            "ref": "${{ needs.main.outputs.sha }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "id": "qntx",
+          "name": "What main is",
+          "run": "built=$(git describe --tags --match 'v*')\nversion=$(git tag -l 'v*' | sort -V | tail -1)\ntest -n \"$built\" && test -n \"$version\"\necho \"built=$built\" >> \"$GITHUB_OUTPUT\"\necho \"version=${version#v}\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX_TAG=$built\" >> \"$GITHUB_ENV\"\necho \"building $built as $version\"\n",
+          "working-directory": "qntx"
+        },
+        {
+          "id": "rust",
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "components": "clippy",
+            "targets": "wasm32-unknown-unknown, aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android"
+          }
+        },
+        {
+          "uses": "jetli/wasm-pack-action@v0.4.0",
+          "with": {
+            "version": "v0.13.1"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "1.3.3"
+          }
+        },
+        {
+          "uses": "actions/setup-java@v4",
+          "with": {
+            "distribution": "temurin",
+            "java-version": "21"
+          }
+        },
+        {
+          "uses": "android-actions/setup-android@v3"
+        },
+        {
+          "name": "Install the NDK cargo tauri android build needs",
+          "run": "sdkmanager --install \"ndk;27.0.12077973\"\necho \"ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973\" >> \"$GITHUB_ENV\"\n"
+        },
+        {
+          "name": "The wasm compiled last time",
+          "uses": "actions/cache@v4",
+          "with": {
+            "key": "wasm-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('qntx/Cargo.lock', 'qntx/crates/**') }}",
+            "path": "qntx/target\n~/.cargo/registry/index\n~/.cargo/registry/cache\n~/.cargo/git/db\n",
+            "restore-keys": "wasm-${{ steps.rust.outputs.cachekey }}-\n"
+          }
+        },
+        {
+          "name": "The shell compiled last time",
+          "uses": "actions/cache@v4",
+          "with": {
+            "key": "shell-android-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'qntx/crates/**') }}",
+            "path": "target",
+            "restore-keys": "shell-android-${{ steps.rust.outputs.cachekey }}-\n"
+          }
+        },
+        {
+          "env": {
+            "BACKEND_URL": "${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}",
+            "SENTRY_DSN": "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992"
+          },
+          "name": "Build the bundle the app carries",
+          "run": "make web",
+          "working-directory": "qntx"
+        },
+        {
+          "name": "The lib answers for every error",
+          "run": "cargo clippy --lib --target aarch64-linux-android"
+        },
+        {
+          "name": "Fetch tauri-cli 2.11.4",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.zip\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+        },
+        {
+          "name": "The app is versioned as QNTX's newest release",
+          "run": "python3 -c 'import json,sys; p=\"tauri.conf.json\"; c=json.load(open(p)); c[\"version\"]=sys.argv[1]; json.dump(c,open(p,\"w\"),indent=2); print(\"version\", c[\"version\"])' \"${{ steps.qntx.outputs.version }}\"\n"
+        },
+        {
+          "env": {
+            "ANDROID_KEYSTORE_BASE64": "${{ secrets.ANDROID_KEYSTORE_BASE64 }}",
+            "ANDROID_KEYSTORE_PASSWORD": "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          },
+          "name": "The signing key, from the secret it lives in",
+          "run": "mkdir -p \"$HOME/.keystores/qntx-app\"\necho \"$ANDROID_KEYSTORE_BASE64\" | base64 --decode > \"$HOME/.keystores/qntx-app/upload-keystore.jks\"\n{\n  echo \"password=$ANDROID_KEYSTORE_PASSWORD\"\n  echo \"keyAlias=upload\"\n  echo \"storeFile=$HOME/.keystores/qntx-app/upload-keystore.jks\"\n} > \"$HOME/.keystores/qntx-app/keystore.properties\"\n"
+        },
+        {
+          "run": "cargo tauri android init"
+        },
+        {
+          "name": "Build signed APK",
+          "run": "cargo tauri android build --apk true"
+        },
+        {
+          "id": "apk",
+          "name": "Locate APK",
+          "run": "FOUND=$(find gen/android -name '*.apk' -type f | head -1)\nif [ -z \"$FOUND\" ]; then\n  echo \"no apk produced\"\n  exit 1\nfi\necho \"path=$FOUND\" >> \"$GITHUB_OUTPUT\"\necho \"Found $FOUND\"\n"
+        },
+        {
+          "env": {
+            "GH_TOKEN": "${{ github.token }}"
+          },
+          "name": "Publish the release the updater will find",
+          "run": "tag=\"android-${{ steps.qntx.outputs.version }}.${{ github.run_number }}\"\ngh release create \"$tag\" \"${{ steps.apk.outputs.path }}\" \\\n  --title \"$tag\" \\\n  --notes \"Built from ${{ steps.qntx.outputs.built }}\"\n"
+        }
+      ]
+    },
+    "main": {
+      "outputs": {
+        "sha": "${{ steps.main.outputs.sha }}"
+      },
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "id": "main",
+          "name": "Where main is",
+          "run": "sha=$(git ls-remote https://github.com/teranos/QNTX refs/heads/main | cut -f1)\ntest -n \"$sha\"\necho \"sha=$sha\" >> \"$GITHUB_OUTPUT\"\necho \"main is $sha\"\n"
+        }
+      ]
+    }
+  },
+  "name": "android",
+  "on": {
+    "push": null,
+    "workflow_dispatch": {
+      "inputs": {
+        "backend_url": {
+          "default": "https://api.q.sbvh.nl",
+          "description": "API origin baked into the bundle",
+          "type": "string"
+        },
+        "ground": {
+          "default": "",
+          "description": "the performance and rite that dispatched this",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "run-name": "android ${{ github.ref_name }} ${{ inputs.ground }}"
+}
