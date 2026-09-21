@@ -114,6 +114,7 @@ in
             mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
             rm cmdline-tools.zip
             echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+            echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
             echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
             echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
             yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" --licenses > /dev/null
