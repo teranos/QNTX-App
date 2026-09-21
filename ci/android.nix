@@ -210,7 +210,7 @@ in
 
         {
           name = "Build signed APK";
-          run = "cargo tauri android build --apk true";
+          run = "cargo tauri android build --apk";
         }
 
         {
