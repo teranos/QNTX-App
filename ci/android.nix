@@ -209,22 +209,32 @@ in
 
         { run = "cargo tauri android init"; }
 
+        # init writes this file fresh every run, and tauri's template has no
+        # signingConfig at all, so the patch goes on after init and before build.
+        {
+          name = "Sign against the keystore, which the template knows nothing of";
+          run = "python3 .github/scripts/android-signing.py gen/android/app/build.gradle.kts";
+        }
+
         {
           name = "Build signed APK";
           run = "cargo tauri android build --apk";
         }
 
+        # apksigner is the gate: green here means a phone accepts it.
         {
-          name = "Locate APK";
+          name = "Locate APK, and refuse an unsigned one";
           id = "apk";
           run = ''
-            FOUND=$(find gen/android -name '*.apk' -type f | head -1)
-            if [ -z "$FOUND" ]; then
-              echo "no apk produced"
+            APK=gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+            if [ ! -f "$APK" ]; then
+              find gen/android -name '*.apk' -type f
+              echo "no apk at $APK"
               exit 1
             fi
-            echo "path=$FOUND" >> "$GITHUB_OUTPUT"
-            echo "Found $FOUND"
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+            echo "path=$APK" >> "$GITHUB_OUTPUT"
+            echo "Found $APK"
           '';
         }
 

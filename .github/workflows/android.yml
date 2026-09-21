@@ -108,13 +108,17 @@
           "run": "cargo tauri android init"
         },
         {
+          "name": "Sign against the keystore, which the template knows nothing of",
+          "run": "python3 .github/scripts/android-signing.py gen/android/app/build.gradle.kts"
+        },
+        {
           "name": "Build signed APK",
           "run": "cargo tauri android build --apk"
         },
         {
           "id": "apk",
-          "name": "Locate APK",
-          "run": "FOUND=$(find gen/android -name '*.apk' -type f | head -1)\nif [ -z \"$FOUND\" ]; then\n  echo \"no apk produced\"\n  exit 1\nfi\necho \"path=$FOUND\" >> \"$GITHUB_OUTPUT\"\necho \"Found $FOUND\"\n"
+          "name": "Locate APK, and refuse an unsigned one",
+          "run": "APK=gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk\nif [ ! -f \"$APK\" ]; then\n  find gen/android -name '*.apk' -type f\n  echo \"no apk at $APK\"\n  exit 1\nfi\n\"$ANDROID_HOME/build-tools/35.0.0/apksigner\" verify --verbose \"$APK\"\necho \"path=$APK\" >> \"$GITHUB_OUTPUT\"\necho \"Found $APK\"\n"
         },
         {
           "env": {
