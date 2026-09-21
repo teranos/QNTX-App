@@ -90,7 +90,7 @@
         },
         {
           "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.zip\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "run": "curl -sSL -o cargo-tauri.tgz https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.tgz\ntar -xzf cargo-tauri.tgz -C \"$HOME/.cargo/bin\"\nrm cargo-tauri.tgz\ncargo tauri --version\n"
         },
         {
           "name": "The app is versioned as QNTX's newest release",

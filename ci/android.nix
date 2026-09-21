@@ -175,9 +175,9 @@ in
         {
           name = "Fetch tauri-cli 2.11.4";
           run = ''
-            curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.zip
-            unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
-            rm cargo-tauri.zip
+            curl -sSL -o cargo-tauri.tgz https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.tgz
+            tar -xzf cargo-tauri.tgz -C "$HOME/.cargo/bin"
+            rm cargo-tauri.tgz
             cargo tauri --version
           '';
         }
