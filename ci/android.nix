@@ -163,7 +163,13 @@ in
 
         {
           name = "The lib answers for every error";
-          run = "cargo clippy --lib --target aarch64-linux-android";
+          run = ''
+            NDK_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+            export CC_aarch64_linux_android="$NDK_BIN/aarch64-linux-android24-clang"
+            export AR_aarch64_linux_android="$NDK_BIN/llvm-ar"
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_BIN/aarch64-linux-android24-clang"
+            cargo clippy --lib --target aarch64-linux-android
+          '';
         }
 
         {
