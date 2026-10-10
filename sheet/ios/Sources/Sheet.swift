@@ -2,6 +2,7 @@ import AuthenticationServices
 import SwiftRs
 import Tauri
 import UIKit
+import WebKit
 
 struct RunArgs: Decodable {
   let url: String
@@ -16,6 +17,20 @@ class Sheet: Plugin {
   // before it opens, and then never calls back.
   private var session: ASWebAuthenticationSession?
   private let anchor = Anchor()
+
+  // "the page should simply not zoom, not own it, the zoom is QNTX's to
+  // manage, not the app, not the page, nothing for accesibility"
+  //
+  // The web view QNTX is shown in zooms nothing: not onto a field that takes
+  // the keyboard, not under two fingers. QNTX's canvas reads the fingers
+  // itself, from the touches the page still gets.
+  override func load(webview: WKWebView) {
+    let scroll = webview.scrollView
+    scroll.pinchGestureRecognizer?.isEnabled = false
+    scroll.minimumZoomScale = 1
+    scroll.maximumZoomScale = 1
+    scroll.bouncesZoom = false
+  }
 
   @objc public func run(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(RunArgs.self)
