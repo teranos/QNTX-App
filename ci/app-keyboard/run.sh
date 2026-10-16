@@ -60,21 +60,10 @@ print(name(img.getpixel((img.width * 30 // 100, y))), name(img.getpixel((img.wid
 EOF
 }
 
-# The page is loaded once the squares stand: grey (no keyboard yet), green (its own scale).
-for i in $(seq 1 60); do
-    seen=$(squares "$OUT/$NAME-0-before.png")
-    [ "$seen" = "grey green" ] && break
-    sleep 1
-done
-echo "before: $seen"
-if [ "$seen" != "grey green" ]; then
-    echo "$NAME: page never showed" >> verdicts.txt
-    exit 1
-fi
-
 # The box, where the screen shows it: the white run down the middle of the
 # screenshot, turned from pixels into the points a finger is placed in.
-read -r X Y < <(python3 - "$OUT/$NAME-0-before.png" "$(idb describe --udid "$UDID" --json)" <<'EOF2'
+box() {
+    python3 - "$1" "$(idb describe --udid "$UDID" --json)" <<'EOF2'
 import json, sys
 from PIL import Image
 img = Image.open(sys.argv[1]).convert('RGB')
@@ -94,7 +83,24 @@ if len(run) <= 40:
     sys.exit('no box on the screen')
 print(int(x / scale), int((run[0] + run[-1]) / 2 / scale))
 EOF2
-)
+}
+
+# The page is loaded once the squares stand, grey (no keyboard yet) and green
+# (its own scale), and the box stands with them: a page caught mid-draw showed
+# the squares and not yet the box.
+at=""
+for i in $(seq 1 60); do
+    seen=$(squares "$OUT/$NAME-0-before.png")
+    if [ "$seen" = "grey green" ] && at=$(box "$OUT/$NAME-0-before.png"); then break; fi
+    at=""
+    sleep 1
+done
+echo "before: $seen"
+if [ "$seen" != "grey green" ] || [ -z "$at" ]; then
+    echo "$NAME: page never showed" >> verdicts.txt
+    exit 1
+fi
+read -r X Y <<< "$at"
 echo "the box is at $X,$Y"
 idb ui tap --udid "$UDID" "$X" "$Y"
 sleep 4
