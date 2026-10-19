@@ -1,0 +1,95 @@
+# The app on an iPhone, left alone. .github/workflows/app-idle.yml is emitted
+# from this and is never edited by hand:
+#
+#   nix eval --json --file ci/app-idle.nix | jq . > .github/workflows/app-idle.yml
+#
+# "WebKit's own guidance suggests aiming for less than 3% average CPU usage
+# during an idle session, with a recording of at least 15 seconds to avoid
+# overreacting to brief spikes. Sustained high CPU activity is a warning sign
+# for battery drain."
+#
+# The app shows QNTX in Apple's web view, not Safari, so this builds this shell
+# for the Simulator, with QNTX's main beside it as the shell expects, and leaves
+# it on its door. In the Simulator the app and the web view's processes are
+# processes of the runner, which ci/app-idle/sample.py reads. Nothing here
+# reaches TestFlight.
+{
+  name = "App idle";
+
+  on = {
+    pull_request.paths = [ "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "sheet/**" "power/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    workflow_dispatch = null;
+  };
+
+  jobs.ios = {
+    name = "QNTX-App idle in the iPhone Simulator";
+    runs-on = "macos-15";
+    timeout-minutes = 90;
+    steps = [
+      { uses = "actions/checkout@v5"; }
+      {
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/QNTX";
+          path = "qntx";
+        };
+      }
+      {
+        uses = "dtolnay/rust-toolchain@stable";
+        "with".targets = "aarch64-apple-ios-sim, wasm32-unknown-unknown";
+      }
+      {
+        uses = "jetli/wasm-pack-action@v0.4.0";
+        "with".version = "v0.13.1";
+      }
+      {
+        uses = "oven-sh/setup-bun@v2";
+        "with".bun-version = "1.3.3";
+      }
+      {
+        name = "Fetch tauri-cli 2.11.4";
+        run = ''
+          curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip
+          unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
+          rm cargo-tauri.zip
+          cargo tauri --version
+        '';
+      }
+      {
+        uses = "actions/setup-python@v5";
+        "with".python-version = "3.11";
+      }
+      { run = "cargo tauri ios init"; }
+      {
+        name = "Boot an iPhone";
+        run = ''
+          RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | sort_by(.version) | last | .identifier')
+          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select(.name | startswith("iPhone"))] | first | .udid')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+        '';
+      }
+      {
+        name = "QNTX's page as main builds it, on its door, left alone";
+        # A run that hangs ends here, its log kept.
+        timeout-minutes = 60;
+        run = ''
+          (cd qntx && make web)
+          bash ci/app-idle/run.sh door
+        '';
+      }
+      {
+        "if" = "always()";
+        name = "What was read";
+        uses = "actions/upload-artifact@v4";
+        "with" = {
+          name = "app-idle";
+          path = "idle-samples";
+          retention-days = 14;
+          if-no-files-found = "warn";
+        };
+      }
+    ];
+  };
+}
