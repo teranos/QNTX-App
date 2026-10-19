@@ -5,6 +5,10 @@
       "runs-on": "macos-15",
       "steps": [
         {
+          "name": "Spotlight stays out of the way",
+          "run": "sudo mdutil -a -i off"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {

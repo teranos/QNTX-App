@@ -27,6 +27,14 @@
     runs-on = "macos-15";
     timeout-minutes = 90;
     steps = [
+      {
+        # The runner is 0% idle for minutes after the build, and what is busiest
+        # is Spotlight (mds, mdworker_shared, mds_stores) indexing the tree the
+        # build just wrote. Off before anything is written, so the CPU that is
+        # read is not shared with it.
+        name = "Spotlight stays out of the way";
+        run = "sudo mdutil -a -i off";
+      }
       { uses = "actions/checkout@v5"; }
       {
         uses = "actions/checkout@v5";
