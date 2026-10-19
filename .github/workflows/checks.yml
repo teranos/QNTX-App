@@ -169,18 +169,14 @@
           "run": "rsync -a --exclude README.md checks/ qntx/"
         },
         {
-          "uses": "dtolnay/rust-toolchain@stable",
+          "uses": "cachix/install-nix-action@v30",
           "with": {
-            "components": "rustfmt, clippy"
+            "extra_nix_config": "experimental-features = nix-command flakes\n"
           }
         },
         {
-          "name": "protoc, for qntx-proto",
-          "run": "sudo apt-get install -y protobuf-compiler"
-        },
-        {
           "name": "Formatting",
-          "run": "cargo fmt --all --check",
+          "run": "nix develop --command cargo fmt --all --check",
           "working-directory": "qntx"
         },
         {
@@ -189,7 +185,7 @@
           },
           "if": "always()",
           "name": "Clippy",
-          "run": "cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets",
+          "run": "nix develop --command cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets",
           "working-directory": "qntx"
         }
       ]

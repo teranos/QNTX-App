@@ -173,27 +173,25 @@ in
       needs = "tag";
       "if" = fresh;
       runs-on = "ubuntu-latest";
+      # The toolchain QNTX's flake pins: stable moves, and a newer clippy names what QNTX's never did.
       steps = overQNTX ++ [
         {
-          uses = "dtolnay/rust-toolchain@stable";
-          "with".components = "rustfmt, clippy";
-        }
-
-        {
-          name = "protoc, for qntx-proto";
-          run = "sudo apt-get install -y protobuf-compiler";
+          uses = "cachix/install-nix-action@v30";
+          "with".extra_nix_config = ''
+            experimental-features = nix-command flakes
+          '';
         }
 
         {
           name = "Formatting";
           working-directory = "qntx";
-          run = "cargo fmt --all --check";
+          run = "nix develop --command cargo fmt --all --check";
         }
 
         (always {
           name = "Clippy";
           working-directory = "qntx";
-          run = "cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets";
+          run = "nix develop --command cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets";
           env.RUSTFLAGS = "-Dwarnings";
         })
       ];
