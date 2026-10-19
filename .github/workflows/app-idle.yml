@@ -1,4 +1,8 @@
 {
+  "concurrency": {
+    "cancel-in-progress": true,
+    "group": "app-idle-${{ github.ref }}"
+  },
   "jobs": {
     "ios": {
       "name": "QNTX-App idle in the iPhone Simulator",

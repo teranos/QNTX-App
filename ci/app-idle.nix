@@ -22,6 +22,12 @@
     workflow_dispatch = null;
   };
 
+  # A push to the pull request ends the run of the one before: one macOS runner per pull request.
+  concurrency = {
+    group = "app-idle-\${{ github.ref }}";
+    cancel-in-progress = true;
+  };
+
   jobs.ios = {
     name = "QNTX-App idle in the iPhone Simulator";
     runs-on = "macos-15";

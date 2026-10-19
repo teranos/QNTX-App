@@ -226,8 +226,11 @@ def main():
     print('%-11s %s %8.2f' % ('everything', ' '.join('%7.2f' % r['total_cpu_percent'] for r in taken), total))
 
     print('runner idle: %s%% before, %s%% after (half is asked)' % (idle_before, idle_after))
-    quiet = idle_before is None or idle_before >= QUIET_IDLE
-    if not quiet:
+    # An idle top did not say is not a quiet runner: nothing was read, and nothing is assumed.
+    if idle_before is None:
+        print('how idle the runner was could not be read from top, so these are not known to be the app alone', file=sys.stderr)
+        sys.exit(2)
+    if idle_before < QUIET_IDLE:
         print('the runner never had half its CPU idle, so these are not the app alone', file=sys.stderr)
         sys.exit(2)
     if replaced:
