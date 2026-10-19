@@ -12,9 +12,17 @@ CPUTime::percentageCPUUsageSince counts. Memory is the resident size.
   sample.py <udid> <name> <windows> <seconds>
 
 Reads <windows> windows of <seconds> each, one after the other, and says each one
-and the average over all. Exits 1 when the average of everything the app runs is
-3% or more, 2 when the processes could not be told apart or one was replaced
-while it was read.
+and the average over all.
+
+"Right now it's just data to me, if that can arrive in Sentry would be great.
+Not enough data to make choices on yet."
+
+So what is read is sent to Sentry (SENTRY_DSN), and the run does not fail on it.
+A run says whether the runner was quiet and whether a process was replaced as
+attributes on what it sends, and a run that cannot be trusted is told from the
+rest there. A runner whose idle nobody read is not a quiet one. The 3% is said,
+not enforced, until APP_IDLE_ENFORCE=1: then 3% or more exits 1. Exits 2 only
+when there is no process of the app to read.
 """
 import json
 import os
@@ -25,6 +33,9 @@ import time
 
 # WebKit: idle pages should strive for a Low rating, less than 3% average CPU.
 THRESHOLD = 3.0
+
+# Said and not enforced, until someone has seen enough runs to choose.
+ENFORCE = os.environ.get('APP_IDLE_ENFORCE') == '1'
 
 # A reading is of the app only if the machine it is on has room. The first two
 # runs were on a runner with 0% of its CPU idle and a load average near 400, so
@@ -85,6 +96,67 @@ def busiest():
         return ''
     at = out.rfind('PID')
     return out[at:] if at >= 0 else out
+
+
+def metrics_of(result):
+    """What a run says, as (kind, name, value, unit, attributes) for Sentry.
+
+    CPU is the average per process and for everything, and each window of it;
+    memory is the largest resident size; the runner's idle is before and after.
+    Every one carries what is needed to tell this run from another, and whether
+    it can be trusted: a quiet runner, and no process replaced."""
+    idle = result['runner_idle_percent']
+    before = idle['before']
+    base = {
+        'ci.scenario': result['name'],
+        # An idle nobody read is not a quiet runner.
+        'ci.quiet': before is not None and before >= idle['asked'],
+        'ci.replaced': bool(result['replaced']),
+        'ci.sha': os.environ.get('GITHUB_SHA', ''),
+        'ci.run_id': os.environ.get('GITHUB_RUN_ID', ''),
+        'ci.ref': os.environ.get('GITHUB_REF_NAME', ''),
+        'ci.windows': len(result['windows']),
+        'ci.window_seconds': result['windows'][0]['wall_seconds'] if result['windows'] else 0,
+    }
+    out = []
+    for kind, value in list(result['average_cpu_percent'].items()) + [('everything', result['total_cpu_percent'])]:
+        out.append(('gauge', 'ci.app_idle.cpu_average', value, 'percent', dict(base, **{'ci.process': kind})))
+    for window in result['windows']:
+        for kind, value in window['kinds'].items():
+            out.append(('distribution', 'ci.app_idle.cpu_window', value['cpu_percent'], 'percent', dict(base, **{'ci.process': kind})))
+        out.append(('distribution', 'ci.app_idle.cpu_window', window['total_cpu_percent'], 'percent', dict(base, **{'ci.process': 'everything'})))
+    for kind, value in result['max_rss_mb'].items():
+        out.append(('gauge', 'ci.app_idle.memory_max', value, 'megabyte', dict(base, **{'ci.process': kind})))
+    for when in ('before', 'after'):
+        if idle[when] is not None:
+            out.append(('gauge', 'ci.app_idle.runner_idle', idle[when], 'percent', dict(base, **{'ci.when': when})))
+    return out
+
+
+def send(items):
+    """Sends them to Sentry. A run that cannot says so, and is not failed by it."""
+    dsn = os.environ.get('SENTRY_DSN', '')
+    if not dsn:
+        print('no SENTRY_DSN, so nothing was sent to Sentry')
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk import metrics
+    except ImportError as why:
+        print('sentry_sdk is not here, so nothing was sent to Sentry: %s' % why, file=sys.stderr)
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment='ci',
+        release=os.environ.get('GITHUB_SHA') or None,
+        send_default_pii=False,
+        default_integrations=False,
+        auto_enabling_integrations=False,
+    )
+    for kind, name, value, unit, attributes in items:
+        getattr(metrics, kind)(name, value, unit=unit, attributes=attributes)
+    sentry_sdk.flush(timeout=20)
+    print('sent %d metrics to Sentry, environment ci' % len(items))
 
 
 def seconds(cputime):
@@ -228,18 +300,20 @@ def main():
     print('runner idle: %s%% before, %s%% after (half is asked)' % (idle_before, idle_after))
     # An idle top did not say is not a quiet runner: nothing was read, and nothing is assumed.
     if idle_before is None:
-        print('how idle the runner was could not be read from top, so these are not known to be the app alone', file=sys.stderr)
-        sys.exit(2)
-    if idle_before < QUIET_IDLE:
-        print('the runner never had half its CPU idle, so these are not the app alone', file=sys.stderr)
-        sys.exit(2)
+        print('how idle the runner was could not be read from top, so these are not known to be the app alone')
+    elif idle_before < QUIET_IDLE:
+        print('the runner never had half its CPU idle, so these are not the app alone')
     if replaced:
-        print('a process was replaced while it was read, so the CPU of these is not one process: %s' % replaced, file=sys.stderr)
-        sys.exit(2)
+        print('a process was replaced while it was read, so the CPU of these is not one process: %s' % replaced)
+
+    send(metrics_of(result))
+
     if total >= THRESHOLD:
         print('%s: %.2f%% average CPU is not under the %.0f%% WebKit asks of an idle page' % (name, total, THRESHOLD))
-        sys.exit(1)
-    print('%s: %.2f%% average CPU, under the %.0f%% WebKit asks of an idle page' % (name, total, THRESHOLD))
+        if ENFORCE:
+            sys.exit(1)
+    else:
+        print('%s: %.2f%% average CPU, under the %.0f%% WebKit asks of an idle page' % (name, total, THRESHOLD))
 
 
 if __name__ == "__main__":

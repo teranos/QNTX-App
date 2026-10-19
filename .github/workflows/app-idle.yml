@@ -58,11 +58,22 @@
           "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
         },
         {
+          "name": "Sentry's SDK for the sampler",
+          "run": "python3 -m pip install --quiet sentry-sdk==2.72.0"
+        },
+        {
           "env": {
             "BACKEND_URL": "https://api.q.sbvh.nl"
           },
-          "name": "QNTX's page as the TestFlight build makes it, left alone",
-          "run": "(cd qntx && make web)\nbash ci/app-idle/run.sh launch\n",
+          "name": "QNTX's page as the TestFlight build makes it",
+          "run": "(cd qntx && make web)"
+        },
+        {
+          "env": {
+            "SENTRY_DSN": "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992"
+          },
+          "name": "The app, left alone",
+          "run": "bash ci/app-idle/run.sh launch",
           "timeout-minutes": 60
         },
         {

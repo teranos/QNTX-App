@@ -86,17 +86,29 @@
         '';
       }
       {
-        name = "QNTX's page as the TestFlight build makes it, left alone";
-        # A run that hangs ends here, its log kept.
-        timeout-minutes = 60;
+        # What the sampler sends to Sentry with: the SDK for Python, as pinned.
+        name = "Sentry's SDK for the sampler";
+        run = "python3 -m pip install --quiet sentry-sdk==2.72.0";
+      }
+      {
+        name = "QNTX's page as the TestFlight build makes it";
         # The page is told where its node is, as the TestFlight build tells it.
         # Without it the page asks the app's own scheme, is answered with the
         # app's index.html, and stops on "Unrecognized token '<'" before the door.
+        # No SENTRY_DSN here: a page that reports is the app's, and a Simulator's
+        # reports would be mixed with a phone's.
         env.BACKEND_URL = "https://api.q.sbvh.nl";
-        run = ''
-          (cd qntx && make web)
-          bash ci/app-idle/run.sh launch
-        '';
+        run = "(cd qntx && make web)";
+      }
+      {
+        name = "The app, left alone";
+        # A run that hangs ends here, its log kept.
+        timeout-minutes = 60;
+        # What the sampler reads is sent to the project the shell leaves to
+        # (src/lib.rs), as environment ci with ci.* names. A DSN only writes,
+        # so it sits here as a literal.
+        env.SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+        run = "bash ci/app-idle/run.sh launch";
       }
       {
         "if" = "always()";
