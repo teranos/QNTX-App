@@ -3314,6 +3314,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "power"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3533,6 +3543,7 @@ name = "qntx-app"
 version = "0.2.44"
 dependencies = [
  "log",
+ "power",
  "qntx-grpc",
  "qntx-proto",
  "sentry",

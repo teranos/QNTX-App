@@ -5,6 +5,10 @@
 #[cfg(target_os = "ios")]
 mod ios;
 
+// The phone's power state, sent to Sentry.
+#[cfg(target_os = "ios")]
+mod power;
+
 // Android-specific features (biometrics, permissions, etc.)
 #[cfg(target_os = "android")]
 mod android;
@@ -59,6 +63,12 @@ pub fn run() {
             .plugin(tauri_plugin_deep_link::init())
             // The ceremony in the system sheet, back without leaving the app.
             .plugin(sheet::init())
+            // What the phone says about its power, read by `power::watch` below.
+            .plugin(::power::init())
+            .setup(|app| {
+                power::watch(app.handle().clone());
+                Ok(())
+            })
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
                 ios::ios_biometric_available,

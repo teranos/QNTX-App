@@ -97,6 +97,7 @@
         "ci/app-keyboard.nix",
         ".github/workflows/app-keyboard.yml",
         "sheet/**",
+        "power/**",
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",

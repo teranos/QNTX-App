@@ -40,6 +40,8 @@ tauri-plugin-deep-link = "=2.4.10"
 # On iOS the ceremony runs in the sheet the system gives a web sign-in, and
 # comes back without leaving the app. Off iOS it says it cannot.
 sheet = { path = "sheet" }
+# What the phone says about its own power, sent to Sentry as gauges.
+power = { path = "power" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
 # rustls, not native-tls: native-tls needs openssl-sys, uncompilable for Android.
