@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""What the app costs when nobody touches it, as WebKit counts it.
+
+"WebKit's own guidance suggests aiming for less than 3% average CPU usage
+during an idle session, with a recording of at least 15 seconds"
+
+The app runs in the iPhone Simulator, so the app and the web view's processes are
+processes of the runner, and `ps` reads them. CPU use is the change in their CPU
+time over the change in clock time, in percent of one core: what WebKit's
+CPUTime::percentageCPUUsageSince counts. Memory is the resident size.
+
+  sample.py <udid> <name> <windows> <seconds>
+
+Reads <windows> windows of <seconds> each, one after the other, and says each one
+and the average over all.
+
+"Right now it's just data to me, if that can arrive in Sentry would be great.
+Not enough data to make choices on yet."
+
+So what is read is sent to Sentry (SENTRY_DSN), and the run does not fail on it.
+A run says whether the runner was quiet and whether a process was replaced as
+attributes on what it sends, and a run that cannot be trusted is told from the
+rest there. A runner whose idle nobody read is not a quiet one. The 3% is said,
+not enforced, until APP_IDLE_ENFORCE=1: then 3% or more exits 1. Exits 2 only
+when there is no process of the app to read.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+# WebKit: idle pages should strive for a Low rating, less than 3% average CPU.
+THRESHOLD = 3.0
+
+# Said and not enforced, until someone has seen enough runs to choose.
+ENFORCE = os.environ.get('APP_IDLE_ENFORCE') == '1'
+
+# A reading is of the app only if the machine it is on has room. The first two
+# runs were on a runner with 0% of its CPU idle and a load average near 400, so
+# half idle is asked before anything is read. Half is my choice, not WebKit's.
+QUIET_IDLE = 50.0
+QUIET_WAIT_SECONDS = 120
+
+# What is told apart by its command. The app is the shell; the others are the
+# processes the web view does its work in.
+KINDS = [
+    ('app', '/QNTX.app/'),
+    ('WebContent', 'com.apple.WebKit.WebContent'),
+    ('GPU', 'com.apple.WebKit.GPU'),
+    ('Networking', 'com.apple.WebKit.Networking'),
+]
+
+
+def machine_idle():
+    """Percent of the machine's CPU that is idle, from the second sample of top."""
+    try:
+        out = subprocess.run(['top', '-l', '2', '-s', '3', '-n', '0'], capture_output=True, text=True, timeout=40).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    last = None
+    for line in out.splitlines():
+        if line.startswith('CPU usage:'):
+            last = line
+    if last is None:
+        return None
+    for part in last.split(','):
+        part = part.strip()
+        if part.endswith('% idle'):
+            try:
+                return float(part.split('%')[0])
+            except ValueError:
+                return None
+    return None
+
+
+def wait_for_quiet():
+    """Waits, up to QUIET_WAIT_SECONDS, for the machine to be QUIET_IDLE idle.
+    Says how idle it was when it stopped waiting, and how long it waited."""
+    start = time.monotonic()
+    idle = machine_idle()
+    while idle is not None and idle < QUIET_IDLE and time.monotonic() - start < QUIET_WAIT_SECONDS:
+        idle = machine_idle()
+    return idle, round(time.monotonic() - start, 1)
+
+
+def busiest():
+    """What is using the machine: top's second sample, by CPU."""
+    try:
+        out = subprocess.run(
+            ['top', '-l', '2', '-s', '5', '-o', 'cpu', '-n', '15', '-stats', 'pid,command,cpu'],
+            capture_output=True, text=True, timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    at = out.rfind('PID')
+    return out[at:] if at >= 0 else out
+
+
+def metrics_of(result):
+    """What a run says, as (kind, name, value, unit, attributes) for Sentry.
+
+    CPU is the average per process and for everything, and each window of it;
+    memory is the largest resident size; the runner's idle is before and after.
+    Every one carries what is needed to tell this run from another, and whether
+    it can be trusted: a quiet runner, and no process replaced."""
+    idle = result['runner_idle_percent']
+    before = idle['before']
+    base = {
+        'ci.scenario': result['name'],
+        # An idle nobody read is not a quiet runner.
+        'ci.quiet': before is not None and before >= idle['asked'],
+        'ci.replaced': bool(result['replaced']),
+        'ci.sha': os.environ.get('GITHUB_SHA', ''),
+        'ci.run_id': os.environ.get('GITHUB_RUN_ID', ''),
+        'ci.ref': os.environ.get('GITHUB_REF_NAME', ''),
+        'ci.windows': len(result['windows']),
+        'ci.window_seconds': result['windows'][0]['wall_seconds'] if result['windows'] else 0,
+    }
+    out = []
+    for kind, value in list(result['average_cpu_percent'].items()) + [('everything', result['total_cpu_percent'])]:
+        out.append(('gauge', 'ci.app_idle.cpu_average', value, 'percent', dict(base, **{'ci.process': kind})))
+    for window in result['windows']:
+        for kind, value in window['kinds'].items():
+            out.append(('distribution', 'ci.app_idle.cpu_window', value['cpu_percent'], 'percent', dict(base, **{'ci.process': kind})))
+        out.append(('distribution', 'ci.app_idle.cpu_window', window['total_cpu_percent'], 'percent', dict(base, **{'ci.process': 'everything'})))
+    for kind, value in result['max_rss_mb'].items():
+        out.append(('gauge', 'ci.app_idle.memory_max', value, 'megabyte', dict(base, **{'ci.process': kind})))
+    for when in ('before', 'after'):
+        if idle[when] is not None:
+            out.append(('gauge', 'ci.app_idle.runner_idle', idle[when], 'percent', dict(base, **{'ci.when': when})))
+    return out
+
+
+def send(items):
+    """Sends them to Sentry. A run that cannot says so, and is not failed by it."""
+    dsn = os.environ.get('SENTRY_DSN', '')
+    if not dsn:
+        print('no SENTRY_DSN, so nothing was sent to Sentry')
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk import metrics
+    except ImportError as why:
+        print('sentry_sdk is not here, so nothing was sent to Sentry: %s' % why, file=sys.stderr)
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment='ci',
+        release=os.environ.get('GITHUB_SHA') or None,
+        send_default_pii=False,
+        default_integrations=False,
+        auto_enabling_integrations=False,
+    )
+    for kind, name, value, unit, attributes in items:
+        getattr(metrics, kind)(name, value, unit=unit, attributes=attributes)
+    sentry_sdk.flush(timeout=20)
+    print('sent %d metrics to Sentry, environment ci' % len(items))
+
+
+def seconds(cputime):
+    """ps prints CPU time as [[h:]m:]s.cc, from the right."""
+    return sum(float(part) * 60 ** i for i, part in enumerate(reversed(cputime.split(':'))))
+
+
+def processes():
+    out = subprocess.run(
+        ['ps', '-axo', 'pid=,ppid=,cputime=,rss=,command='],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    rows = []
+    for line in out.splitlines():
+        parts = line.split(None, 4)
+        if len(parts) < 5:
+            continue
+        pid, ppid, cputime, rss, command = parts
+        rows.append({'pid': int(pid), 'ppid': int(ppid), 'cpu': seconds(cputime), 'rss': int(rss), 'command': command})
+    return rows
+
+
+def under(udid, rows):
+    """The processes this simulator started: its launchd_sim and everything below it."""
+    roots = [r['pid'] for r in rows if 'launchd_sim' in r['command'] and udid in r['command']]
+    found = set(roots)
+    grew = True
+    while grew:
+        grew = False
+        for r in rows:
+            if r['ppid'] in found and r['pid'] not in found:
+                found.add(r['pid'])
+                grew = True
+    return [r for r in rows if r['pid'] in found and r['pid'] not in roots]
+
+
+def snapshot(udid):
+    rows = under(udid, processes())
+    kinds = {}
+    for name, mark in KINDS:
+        mine = [r for r in rows if mark in r['command']]
+        kinds[name] = {
+            'cpu': sum(r['cpu'] for r in mine),
+            'rss_kb': sum(r['rss'] for r in mine),
+            'pids': sorted(r['pid'] for r in mine),
+        }
+    return {'at': time.monotonic(), 'kinds': kinds, 'seen': len(rows)}
+
+
+def diagnose(name, kinds):
+    """Where the CPU is, kept beside the numbers: what each busy process is
+    doing (`sample`, a call graph over ten seconds) and how often it is woken
+    (`top`, whose `idlew` is idle wakeups and `power` its energy impact).
+    A run that cannot take them says so and goes on."""
+    if shutil.which('sample') is None or shutil.which('top') is None:
+        print('no sample or top here, so what the processes were doing is not kept')
+        return
+    os.makedirs('idle-samples', exist_ok=True)
+    for kind in ('app', 'WebContent', 'GPU'):
+        for pid in kinds[kind]['pids']:
+            base = 'idle-samples/%s-%s-%d' % (name, kind, pid)
+            for command, path, wait in (
+                (['top', '-l', '2', '-s', '10', '-pid', str(pid), '-stats', 'pid,command,cpu,idlew,power,mem,threads'], base + '.top.txt', 60),
+                (['sample', str(pid), '10', '-file', base + '.sample.txt'], base + '.sample.log', 60),
+            ):
+                try:
+                    done = subprocess.run(command, capture_output=True, text=True, timeout=wait)
+                    with open(path, 'w') as out:
+                        out.write(done.stdout + done.stderr)
+                except (OSError, subprocess.SubprocessError) as why:
+                    print('%s did not run: %s' % (command[0], why), file=sys.stderr)
+
+
+def main():
+    udid, name, windows, window = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4])
+
+    first = snapshot(udid)
+    if not first['kinds']['app']['pids']:
+        # Nothing to measure. Say what is there, so the next run can be corrected.
+        print('no process of the app was found under simulator ' + udid, file=sys.stderr)
+        for r in processes():
+            if any(word in r['command'] for word in ('launchd_sim', 'QNTX', 'WebKit', udid)):
+                print('  %6d %6d %s' % (r['pid'], r['ppid'], r['command'][:160]), file=sys.stderr)
+        sys.exit(2)
+
+    idle_before, waited = wait_for_quiet()
+    print('the runner was %s%% idle after waiting %gs' % (idle_before, waited))
+    print('busiest on the runner:')
+    print(busiest())
+
+    taken = []
+    before = snapshot(udid)
+    for n in range(windows):
+        time.sleep(window)
+        after = snapshot(udid)
+        wall = after['at'] - before['at']
+        row = {'window': n + 1, 'wall_seconds': round(wall, 2), 'kinds': {}}
+        for kind, _ in KINDS:
+            then, now = before['kinds'][kind], after['kinds'][kind]
+            row['kinds'][kind] = {
+                'cpu_percent': round((now['cpu'] - then['cpu']) * 100.0 / wall, 2),
+                'rss_mb': round(now['rss_kb'] / 1024.0, 1),
+                'replaced': then['pids'] != now['pids'],
+            }
+        row['total_cpu_percent'] = round(sum(k['cpu_percent'] for k in row['kinds'].values()), 2)
+        taken.append(row)
+        before = after
+
+    wall_all = sum(r['wall_seconds'] for r in taken)
+    average = {
+        kind: round(sum(r['kinds'][kind]['cpu_percent'] * r['wall_seconds'] for r in taken) / wall_all, 2)
+        for kind, _ in KINDS
+    }
+    total = round(sum(average.values()), 2)
+    memory = {kind: max(r['kinds'][kind]['rss_mb'] for r in taken) for kind, _ in KINDS}
+    replaced = [(r['window'], kind) for r in taken for kind, k in r['kinds'].items() if k['replaced']]
+
+    idle_after = machine_idle()
+    result = {
+        'name': name,
+        'runner_idle_percent': {'before': idle_before, 'after': idle_after, 'waited_seconds': waited, 'asked': QUIET_IDLE},
+        'windows': taken,
+        'average_cpu_percent': average,
+        'total_cpu_percent': total,
+        'max_rss_mb': memory,
+        'threshold_percent': THRESHOLD,
+        'replaced': replaced,
+    }
+    os.makedirs('idle-samples', exist_ok=True)
+    with open('idle-samples/%s.json' % name, 'w') as out:
+        json.dump(result, out, indent=1)
+    diagnose(name, before['kinds'])
+
+    print('%s: %d windows of %gs, CPU in percent of one core, memory resident in MB' % (name, windows, window))
+    print('%-11s %s %8s %10s' % ('', ' '.join('%7s' % ('w%d' % (i + 1)) for i in range(windows)), 'average', 'max MB'))
+    for kind, _ in KINDS:
+        print('%-11s %s %8.2f %10.1f' % (
+            kind, ' '.join('%7.2f' % r['kinds'][kind]['cpu_percent'] for r in taken), average[kind], memory[kind]))
+    print('%-11s %s %8.2f' % ('everything', ' '.join('%7.2f' % r['total_cpu_percent'] for r in taken), total))
+
+    print('runner idle: %s%% before, %s%% after (half is asked)' % (idle_before, idle_after))
+    # An idle top did not say is not a quiet runner: nothing was read, and nothing is assumed.
+    if idle_before is None:
+        print('how idle the runner was could not be read from top, so these are not known to be the app alone')
+    elif idle_before < QUIET_IDLE:
+        print('the runner never had half its CPU idle, so these are not the app alone')
+    if replaced:
+        print('a process was replaced while it was read, so the CPU of these is not one process: %s' % replaced)
+
+    send(metrics_of(result))
+
+    if total >= THRESHOLD:
+        print('%s: %.2f%% average CPU is not under the %.0f%% WebKit asks of an idle page' % (name, total, THRESHOLD))
+        if ENFORCE:
+            sys.exit(1)
+    else:
+        print('%s: %.2f%% average CPU, under the %.0f%% WebKit asks of an idle page' % (name, total, THRESHOLD))
+
+
+if __name__ == "__main__":
+    main()
