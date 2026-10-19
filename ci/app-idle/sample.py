@@ -18,6 +18,7 @@ while it was read.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -82,6 +83,30 @@ def snapshot(udid):
     return {'at': time.monotonic(), 'kinds': kinds, 'seen': len(rows)}
 
 
+def diagnose(name, kinds):
+    """Where the CPU is, kept beside the numbers: what each busy process is
+    doing (`sample`, a call graph over ten seconds) and how often it is woken
+    (`top`, whose `idlew` is idle wakeups and `power` its energy impact).
+    A run that cannot take them says so and goes on."""
+    if shutil.which('sample') is None or shutil.which('top') is None:
+        print('no sample or top here, so what the processes were doing is not kept')
+        return
+    os.makedirs('idle-samples', exist_ok=True)
+    for kind in ('app', 'WebContent', 'GPU'):
+        for pid in kinds[kind]['pids']:
+            base = 'idle-samples/%s-%s-%d' % (name, kind, pid)
+            for command, path, wait in (
+                (['top', '-l', '2', '-s', '10', '-pid', str(pid), '-stats', 'pid,command,cpu,idlew,power,mem,threads'], base + '.top.txt', 60),
+                (['sample', str(pid), '10', '-file', base + '.sample.txt'], base + '.sample.log', 60),
+            ):
+                try:
+                    done = subprocess.run(command, capture_output=True, text=True, timeout=wait)
+                    with open(path, 'w') as out:
+                        out.write(done.stdout + done.stderr)
+                except (OSError, subprocess.SubprocessError) as why:
+                    print('%s did not run: %s' % (command[0], why), file=sys.stderr)
+
+
 def main():
     udid, name, windows, window = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4])
 
@@ -133,6 +158,7 @@ def main():
     os.makedirs('idle-samples', exist_ok=True)
     with open('idle-samples/%s.json' % name, 'w') as out:
         json.dump(result, out, indent=1)
+    diagnose(name, before['kinds'])
 
     print('%s: %d windows of %gs, CPU in percent of one core, memory resident in MB' % (name, windows, window))
     print('%-11s %s %8s %10s' % ('', ' '.join('%7s' % ('w%d' % (i + 1)) for i in range(windows)), 'average', 'max MB'))

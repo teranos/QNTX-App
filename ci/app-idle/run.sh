@@ -28,6 +28,16 @@ xcrun simctl launch "$UDID" nl.sbvh.qntx
 # anything is counted: a window that includes the load reads high.
 sleep 45
 
+# What the screen is showing, kept: a number about the door is only about the
+# door if the door is what is there.
+mkdir -p idle-samples
+xcrun simctl io "$UDID" screenshot "idle-samples/$NAME.png"
+
 # Three windows of twenty seconds, one after the other: each over the fifteen
-# WebKit asks for, and a spike in one does not decide it.
+# WebKit asks for, and a spike in one does not decide it. Under 3% passes, and
+# a run that does not is kept all the same.
+set +e
 python3 ci/app-idle/sample.py "$UDID" "$NAME" 3 20
+STATUS=$?
+set -e
+exit "$STATUS"
