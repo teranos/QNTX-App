@@ -244,6 +244,37 @@ async function undersized(page: Page, id: string): Promise<string[]> {
     });
 }
 
+// "its another item we need to burn down essentially and slowly find solutions for each violation"
+
+/** Each place in the element where a word is broken across lines: by where it stands and how wide, never its text. */
+async function brokenWords(page: Page, id: string): Promise<string[]> {
+    return page.locator(`[data-element-id="${id}"]`).evaluate((element) => {
+        const said = new Map<string, number>();
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+            const text = node.textContent ?? '';
+            const holder = node.parentElement;
+            if (holder === null) continue;
+            let from = 0;
+            for (const word of text.split(' ')) {
+                const at = text.indexOf(word, from);
+                from = at + word.length;
+                if (word.length < 2) continue;
+                const range = document.createRange();
+                range.setStart(node, at);
+                range.setEnd(node, at + word.length);
+                // A word on one line is one row of boxes; broken, its boxes stand on more than one.
+                const tops = new Set(Array.from(range.getClientRects()).filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+                if (tops.size < 2) continue;
+                const classes = typeof holder.className === 'string' && holder.className !== '' ? `.${holder.className.split(' ').filter((c) => c !== '').join('.')}` : '';
+                const where = `${holder.tagName.toLowerCase()}${classes} ${Math.round(holder.getBoundingClientRect().width)}px wide`;
+                said.set(where, (said.get(where) ?? 0) + 1);
+            }
+        }
+        return Array.from(said, ([where, words]) => `${words} ${words === 1 ? 'word' : 'words'} broken across lines in ${where}`);
+    });
+}
+
 test('every element, live, can be reached whole', async ({ page }) => {
     expect(API, 'QNTX_GATE_API names no node: the live gate has nothing to ask').not.toBe('');
     expect(TOKEN, 'QNTX_GATE_TOKEN is empty: the live gate has no user').not.toBe('');
@@ -308,7 +339,7 @@ test('every element, live, can be reached whole', async ({ page }) => {
             // An element that asks the node all the time is never quiet: it is measured once the wait is over.
             await quiet(page, wire);
             // What the node refused while it opened: what that call would have drawn was never measured.
-            const past = [...await unreachable(page, id), ...await misheld(page, id), ...await undersized(page, id), ...new Set(wire.refused.map((call) => `the node refused ${call}`))];
+            const past = [...await unreachable(page, id), ...await misheld(page, id), ...await undersized(page, id), ...await brokenWords(page, id), ...new Set(wire.refused.map((call) => `the node refused ${call}`))];
             if (past.length > 0) bad[id] = past;
         } catch (err: unknown) {
             // One that never stands is named with the rest, and the next one still opens.
