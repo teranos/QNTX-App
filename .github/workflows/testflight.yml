@@ -145,7 +145,13 @@
   },
   "name": "testflight",
   "on": {
-    "push": null,
+    "push": {
+      "paths-ignore": [
+        "checks/**",
+        "ci/checks.nix",
+        ".github/workflows/checks.yml"
+      ]
+    },
     "workflow_dispatch": {
       "inputs": {
         "backend_url": {

@@ -21,7 +21,8 @@ in
   # builds unasked: a clock did, once, and spent the day's uploads on its own.
   # "I need the fastest path onto the phone, when I want it."
   on = {
-    push = null;
+    # QNTX's checks are no build of the shell.
+    push.paths-ignore = [ "checks/**" "ci/checks.nix" ".github/workflows/checks.yml" ];
     workflow_dispatch.inputs = {
       backend_url = {
         description = "API origin baked into the bundle";

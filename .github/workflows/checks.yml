@@ -1,0 +1,282 @@
+{
+  "concurrency": {
+    "cancel-in-progress": false,
+    "group": "checks"
+  },
+  "jobs": {
+    "checked": {
+      "if": "always() && needs.tag.outputs.fresh == 'true'",
+      "needs": [
+        "tag",
+        "go",
+        "web",
+        "rust",
+        "elements"
+      ],
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "run": "mkdir -p checked && echo '${{ needs.tag.outputs.tag }}' > checked/tag"
+        },
+        {
+          "uses": "actions/cache/save@v4",
+          "with": {
+            "key": "checked-${{ needs.tag.outputs.tag }}",
+            "path": "checked"
+          }
+        }
+      ]
+    },
+    "elements": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "targets": "wasm32-unknown-unknown"
+          }
+        },
+        {
+          "run": "cargo install wasm-pack --locked\nmake ats laye\n",
+          "working-directory": "qntx"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "latest"
+          }
+        },
+        {
+          "run": "bun install\nbunx playwright install --with-deps chromium webkit\n",
+          "working-directory": "qntx/web"
+        },
+        {
+          "env": {
+            "CI": "1",
+            "QNTX_GATE_API": "${{ vars.QNTX_GATE_API }}",
+            "QNTX_GATE_ORIGIN": "${{ vars.QNTX_GATE_ORIGIN }}",
+            "QNTX_GATE_TOKEN": "${{ secrets.QNTX_GATE_TOKEN }}"
+          },
+          "name": "Every element can be reached whole",
+          "run": "bunx playwright test -c browser live.browser.ts --workers 1",
+          "working-directory": "qntx/web"
+        }
+      ]
+    },
+    "go": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "actions/setup-go@v5",
+          "with": {
+            "go-version-file": "qntx/go.mod"
+          }
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "targets": "wasm32-unknown-unknown"
+          }
+        },
+        {
+          "name": "What golangci builds against",
+          "run": "cargo install wasm-pack --locked\nmake ats\nmake rust-sqlite\n",
+          "working-directory": "qntx"
+        },
+        {
+          "name": "Build tags",
+          "run": "go run ./internal/tools/tagcheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "Goroutines through sacred",
+          "run": "go run ./internal/tools/spawncheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "Nil is nil",
+          "run": "go run ./internal/tools/nilcheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "golangci, on what changed since the tag before",
+          "run": "before=$(git tag -l 'v*' | sort -V | grep -B1 -x -F '${{ needs.tag.outputs.tag }}' | head -1)\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
+          "working-directory": "qntx"
+        }
+      ]
+    },
+    "rust": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "components": "rustfmt, clippy"
+          }
+        },
+        {
+          "name": "protoc, for qntx-proto",
+          "run": "sudo apt-get install -y protobuf-compiler"
+        },
+        {
+          "name": "Formatting",
+          "run": "cargo fmt --all --check",
+          "working-directory": "qntx"
+        },
+        {
+          "env": {
+            "RUSTFLAGS": "-Dwarnings"
+          },
+          "if": "always()",
+          "name": "Clippy",
+          "run": "cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets",
+          "working-directory": "qntx"
+        }
+      ]
+    },
+    "tag": {
+      "outputs": {
+        "fresh": "${{ steps.seen.outputs.cache-hit != 'true' }}",
+        "tag": "${{ steps.newest.outputs.tag }}"
+      },
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "id": "newest",
+          "name": "QNTX's newest tag",
+          "run": "newest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
+        },
+        {
+          "id": "seen",
+          "name": "Whether it was checked",
+          "uses": "actions/cache/restore@v4",
+          "with": {
+            "key": "checked-${{ steps.newest.outputs.tag }}",
+            "lookup-only": true,
+            "path": "checked"
+          }
+        }
+      ]
+    },
+    "web": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "latest"
+          }
+        },
+        {
+          "run": "bun install",
+          "working-directory": "qntx/web"
+        },
+        {
+          "name": "The web bans",
+          "run": "bun x eslint ts --max-warnings 0",
+          "working-directory": "qntx/web"
+        },
+        {
+          "if": "always()",
+          "name": "Text size is the package's",
+          "run": "bun run font-size-ban.ts",
+          "working-directory": "qntx/web"
+        },
+        {
+          "if": "always()",
+          "name": "The bans' own tests",
+          "run": "bun test font-size-ban.test.ts ts/table-cell.lint.test.ts",
+          "working-directory": "qntx/web"
+        }
+      ]
+    }
+  },
+  "name": "checks",
+  "on": {
+    "schedule": [
+      {
+        "cron": "17 * * * *"
+      }
+    ],
+    "workflow_dispatch": null
+  }
+}

@@ -11,7 +11,8 @@ in
 
   # No store to update itself from here, so the build is the release: a tagged GitHub Release carrying the signed APK, which is what the app's own in-app updater will come to check against.
   on = {
-    push = null;
+    # QNTX's checks are no build of the shell.
+    push.paths-ignore = [ "checks/**" "ci/checks.nix" ".github/workflows/checks.yml" ];
     workflow_dispatch.inputs = {
       backend_url = {
         description = "API origin baked into the bundle";
