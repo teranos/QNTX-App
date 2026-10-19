@@ -50,8 +50,11 @@
           "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
         },
         {
-          "name": "QNTX's page as main builds it, on its door, left alone",
-          "run": "(cd qntx && make web)\nbash ci/app-idle/run.sh door\n",
+          "env": {
+            "BACKEND_URL": "https://api.q.sbvh.nl"
+          },
+          "name": "QNTX's page as the TestFlight build makes it, left alone",
+          "run": "(cd qntx && make web)\nbash ci/app-idle/run.sh launch\n",
           "timeout-minutes": 60
         },
         {
