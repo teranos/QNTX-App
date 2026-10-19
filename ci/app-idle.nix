@@ -10,7 +10,8 @@
 #
 # The app shows QNTX in Apple's web view, not Safari, so this builds this shell
 # for the Simulator, with QNTX's main beside it as the shell expects, and leaves
-# it on its door. In the Simulator the app and the web view's processes are
+# it alone once it is up. Which screen that is, is read from the screenshot it
+# keeps. In the Simulator the app and the web view's processes are
 # processes of the runner, which ci/app-idle/sample.py reads. Nothing here
 # reaches TestFlight.
 {
@@ -71,12 +72,16 @@
         '';
       }
       {
-        name = "QNTX's page as main builds it, on its door, left alone";
+        name = "QNTX's page as the TestFlight build makes it, left alone";
         # A run that hangs ends here, its log kept.
         timeout-minutes = 60;
+        # The page is told where its node is, as the TestFlight build tells it.
+        # Without it the page asks the app's own scheme, is answered with the
+        # app's index.html, and stops on "Unrecognized token '<'" before the door.
+        env.BACKEND_URL = "https://api.q.sbvh.nl";
         run = ''
           (cd qntx && make web)
-          bash ci/app-idle/run.sh door
+          bash ci/app-idle/run.sh launch
         '';
       }
       {

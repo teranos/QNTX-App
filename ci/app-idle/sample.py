@@ -26,6 +26,12 @@ import time
 # WebKit: idle pages should strive for a Low rating, less than 3% average CPU.
 THRESHOLD = 3.0
 
+# A reading is of the app only if the machine it is on has room. The first two
+# runs were on a runner with 0% of its CPU idle and a load average near 400, so
+# half idle is asked before anything is read. Half is my choice, not WebKit's.
+QUIET_IDLE = 50.0
+QUIET_WAIT_SECONDS = 120
+
 # What is told apart by its command. The app is the shell; the others are the
 # processes the web view does its work in.
 KINDS = [
@@ -34,6 +40,51 @@ KINDS = [
     ('GPU', 'com.apple.WebKit.GPU'),
     ('Networking', 'com.apple.WebKit.Networking'),
 ]
+
+
+def machine_idle():
+    """Percent of the machine's CPU that is idle, from the second sample of top."""
+    try:
+        out = subprocess.run(['top', '-l', '2', '-s', '3', '-n', '0'], capture_output=True, text=True, timeout=40).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    last = None
+    for line in out.splitlines():
+        if line.startswith('CPU usage:'):
+            last = line
+    if last is None:
+        return None
+    for part in last.split(','):
+        part = part.strip()
+        if part.endswith('% idle'):
+            try:
+                return float(part.split('%')[0])
+            except ValueError:
+                return None
+    return None
+
+
+def wait_for_quiet():
+    """Waits, up to QUIET_WAIT_SECONDS, for the machine to be QUIET_IDLE idle.
+    Says how idle it was when it stopped waiting, and how long it waited."""
+    start = time.monotonic()
+    idle = machine_idle()
+    while idle is not None and idle < QUIET_IDLE and time.monotonic() - start < QUIET_WAIT_SECONDS:
+        idle = machine_idle()
+    return idle, round(time.monotonic() - start, 1)
+
+
+def busiest():
+    """What is using the machine: top's second sample, by CPU."""
+    try:
+        out = subprocess.run(
+            ['top', '-l', '2', '-s', '5', '-o', 'cpu', '-n', '15', '-stats', 'pid,command,cpu'],
+            capture_output=True, text=True, timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    at = out.rfind('PID')
+    return out[at:] if at >= 0 else out
 
 
 def seconds(cputime):
@@ -119,8 +170,13 @@ def main():
                 print('  %6d %6d %s' % (r['pid'], r['ppid'], r['command'][:160]), file=sys.stderr)
         sys.exit(2)
 
+    idle_before, waited = wait_for_quiet()
+    print('the runner was %s%% idle after waiting %gs' % (idle_before, waited))
+    print('busiest on the runner:')
+    print(busiest())
+
     taken = []
-    before = first
+    before = snapshot(udid)
     for n in range(windows):
         time.sleep(window)
         after = snapshot(udid)
@@ -146,8 +202,10 @@ def main():
     memory = {kind: max(r['kinds'][kind]['rss_mb'] for r in taken) for kind, _ in KINDS}
     replaced = [(r['window'], kind) for r in taken for kind, k in r['kinds'].items() if k['replaced']]
 
+    idle_after = machine_idle()
     result = {
         'name': name,
+        'runner_idle_percent': {'before': idle_before, 'after': idle_after, 'waited_seconds': waited, 'asked': QUIET_IDLE},
         'windows': taken,
         'average_cpu_percent': average,
         'total_cpu_percent': total,
@@ -167,6 +225,11 @@ def main():
             kind, ' '.join('%7.2f' % r['kinds'][kind]['cpu_percent'] for r in taken), average[kind], memory[kind]))
     print('%-11s %s %8.2f' % ('everything', ' '.join('%7.2f' % r['total_cpu_percent'] for r in taken), total))
 
+    print('runner idle: %s%% before, %s%% after (half is asked)' % (idle_before, idle_after))
+    quiet = idle_before is None or idle_before >= QUIET_IDLE
+    if not quiet:
+        print('the runner never had half its CPU idle, so these are not the app alone', file=sys.stderr)
+        sys.exit(2)
     if replaced:
         print('a process was replaced while it was read, so the CPU of these is not one process: %s' % replaced, file=sys.stderr)
         sys.exit(2)

@@ -29,7 +29,8 @@ xcrun simctl launch "$UDID" nl.sbvh.qntx
 sleep 45
 
 # What the screen is showing, kept: a number about the door is only about the
-# door if the door is what is there.
+# door if the door is what is there. The first two runs were of a loader that had
+# stopped on an error, which only the screenshot said.
 mkdir -p idle-samples
 xcrun simctl io "$UDID" screenshot "idle-samples/$NAME.png"
 
