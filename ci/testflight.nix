@@ -61,9 +61,9 @@ in
       steps = [
         { uses = "actions/checkout@v5"; }
 
-        # The shell carries no crates and no frontend. Both come from main, at
-        # the commit the job above saw.
-        # Full history: what main is gets described against the tags below it.
+        # The shell carries no crates and no frontend. The crates come from QNTX
+        # main, at the commit the job above saw. Full history: what main is gets
+        # described against the tags below it.
         {
           uses = "actions/checkout@v5";
           "with" = {
@@ -72,6 +72,18 @@ in
             path = "qntx";
             fetch-depth = 0;
             fetch-tags = true;
+          };
+        }
+
+        # The page comes from QNTX-Web main:
+        # "web needs to leave the repo"
+        # Its bun install fetches the browser wasm from QNTX's release.
+        {
+          uses = "actions/checkout@v5";
+          "with" = {
+            repository = "teranos/QNTX-Web";
+            ref = "main";
+            path = "qntx-web";
           };
         }
 
@@ -97,46 +109,19 @@ in
           uses = "dtolnay/rust-toolchain@stable";
           id = "rust";
           "with" = {
-            targets = "wasm32-unknown-unknown, aarch64-apple-ios";
+            targets = "aarch64-apple-ios";
             components = "clippy";
           };
         }
 
         {
-          uses = "jetli/wasm-pack-action@v0.4.0";
-          "with".version = "v0.13.1";
-        }
-
-        {
           uses = "oven-sh/setup-bun@v2";
-          "with".bun-version = "1.3.3";
+          "with".bun-version = "1.3.9";
         }
 
-        # What was already compiled is reused. make cannot tell whether ats or
-        # laye changed, every target of it is phony; cargo can, given its target
-        # dir back. Keyed on what the wasm is a function of: the crates and the
-        # lockfile. A miss on the key still restores the latest of the toolchain,
-        # so one crate changing recompiles that crate and not every dependency.
-        {
-          name = "The wasm compiled last time";
-          uses = "actions/cache@v4";
-          "with" = {
-            path = ''
-              qntx/target
-              ~/.cargo/registry/index
-              ~/.cargo/registry/cache
-              ~/.cargo/git/db
-            '';
-            key = "wasm-\${{ steps.rust.outputs.cachekey }}-\${{ hashFiles('qntx/Cargo.lock', 'qntx/crates/**') }}";
-            restore-keys = ''
-              wasm-''${{ steps.rust.outputs.cachekey }}-
-            '';
-          };
-        }
-
-        # The same for the shell: clippy and the IPA both compile tauri, sentry
-        # and the two QNTX path crates into target/. qntx-proto and qntx-grpc are
-        # path dependencies, so their sources are part of the key.
+        # What was already compiled is reused: clippy and the IPA both compile
+        # tauri, sentry and the two QNTX path crates into target/. qntx-proto and
+        # qntx-grpc are path dependencies, so their sources are part of the key.
         {
           name = "The shell compiled last time";
           uses = "actions/cache@v4";
@@ -149,17 +134,20 @@ in
           };
         }
 
-        # The frontend leaves to the same project the shell does (src/lib.rs):
-        # a phone has no console, and without a DSN the door's failures reached
-        # nobody but a screenshot. A DSN only writes, so it sits here as a literal.
+        # QNTX-Web's build reads BACKEND_URL and SENTRY_DSN and writes dist/. The
+        # page leaves to the same project the shell does (src/lib.rs): a phone has
+        # no console; a DSN only writes, so it sits here as a literal.
         {
           name = "Build the bundle the app carries";
-          working-directory = "qntx";
+          working-directory = "qntx-web";
           env = {
             BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
             SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
           };
-          run = "make web";
+          run = ''
+            bun install --frozen-lockfile
+            bun run build
+          '';
         }
 
         # The wall in Cargo.toml is a list of denials, and this is what asks it.

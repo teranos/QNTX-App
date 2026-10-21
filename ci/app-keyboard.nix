@@ -8,8 +8,8 @@
 # ChatGPT on your phone."
 #
 # The app shows QNTX in Apple's web view, not Safari, so this builds this
-# shell for the Simulator, with QNTX's main beside it as the shell expects.
-# Nothing here reaches TestFlight.
+# shell for the Simulator, with QNTX's main beside it for the crates and
+# QNTX-Web's main for the page, as the shell expects. Nothing here reaches TestFlight.
 {
   name = "App keyboard";
 
@@ -32,16 +32,19 @@
         };
       }
       {
-        uses = "dtolnay/rust-toolchain@stable";
-        "with".targets = "aarch64-apple-ios-sim, wasm32-unknown-unknown";
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/QNTX-Web";
+          path = "qntx-web";
+        };
       }
       {
-        uses = "jetli/wasm-pack-action@v0.4.0";
-        "with".version = "v0.13.1";
+        uses = "dtolnay/rust-toolchain@stable";
+        "with".targets = "aarch64-apple-ios-sim";
       }
       {
         uses = "oven-sh/setup-bun@v2";
-        "with".bun-version = "1.3.3";
+        "with".bun-version = "1.3.9";
       }
       {
         name = "Fetch tauri-cli 2.11.4";
@@ -83,8 +86,8 @@
         # A case that hangs ends here, its log kept, and the next case still runs.
         timeout-minutes = 20;
         run = ''
-          mkdir -p qntx/internal/server/dist
-          sed 's|<!-- VIEWPORT -->|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">|' ci/app-keyboard/page.html > qntx/internal/server/dist/index.html
+          mkdir -p qntx-web/dist
+          sed 's|<!-- VIEWPORT -->|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">|' ci/app-keyboard/page.html > qntx-web/dist/index.html
           bash ci/app-keyboard/run.sh without
         '';
       }
@@ -94,20 +97,22 @@
         # A case that hangs ends here, its log kept, and the next case still runs.
         timeout-minutes = 20;
         run = ''
-          (cd qntx && make web)
-          python3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); a=s.index("<meta name=\"viewport\""); b=s.index(">", a)+1; s=s[:a]+sys.argv[2]+s[b:]; c=s.index("</head>"); open(p,"w").write(s[:c]+"<style>html, body { height: 100%; overflow: hidden; }</style>"+s[c:])' qntx/internal/server/dist/index.html '<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">'
+          (cd qntx-web && bun install --frozen-lockfile)
+          (cd qntx-web && bun run build)
+          python3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); a=s.index("<meta name=\"viewport\""); b=s.index(">", a)+1; s=s[:a]+sys.argv[2]+s[b:]; c=s.index("</head>"); open(p,"w").write(s[:c]+"<style>html, body { height: 100%; overflow: hidden; }</style>"+s[c:])' qntx-web/dist/index.html '<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">'
           bash ci/app-keyboard/run.sh pinned
         '';
       }
       {
         "if" = "always()";
-        name = "QNTX's page as main builds it, holding where its window stood while a field has the keyboard";
+        name = "QNTX's page as QNTX-Web main builds it, holding where its window stood while a field has the keyboard";
         # Pinned, the window still went from 778 to 743 tall and the page scrolled
         # 35 to match, in a shell with or without the web view's inset adjustment.
         timeout-minutes = 20;
         run = ''
-          (cd qntx && make web)
-          python3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); c=s.index("</head>"); open(p,"w").write(s[:c]+open(sys.argv[2]).read()+s[c:])' qntx/internal/server/dist/index.html ci/app-keyboard/hold-page.html
+          (cd qntx-web && bun install --frozen-lockfile)
+          (cd qntx-web && bun run build)
+          python3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); c=s.index("</head>"); open(p,"w").write(s[:c]+open(sys.argv[2]).read()+s[c:])' qntx-web/dist/index.html ci/app-keyboard/hold-page.html
           bash ci/app-keyboard/run.sh page
         '';
       }

@@ -3,5 +3,6 @@ bin/
 gen/
 qntx/
 qntx
+qntx-web/
 __pycache__/
 controls/
