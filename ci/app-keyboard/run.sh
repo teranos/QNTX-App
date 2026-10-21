@@ -6,14 +6,14 @@
 #
 #   "you tap a box to type, and the only thing that happens is the keyboard coming up."
 #
-# Run from the QNTX-App checkout, with QNTX beside it at qntx/ and the page the
-# app is to carry already in qntx/internal/server/dist.
+# Run from the QNTX-App checkout, with QNTX beside it at qntx/, QNTX-Web at
+# qntx-web/, and the page the app is to carry already in qntx-web/dist.
 #   bash ci/app-keyboard/run.sh <name>
 set -euxo pipefail
 
 NAME="$1"
 OUT="${OUT:-keyboard-shots}"
-DIST=qntx/internal/server/dist
+DIST=qntx-web/dist
 mkdir -p "$OUT"
 
 # The box and the squares go into whatever page the app carries.

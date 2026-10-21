@@ -15,21 +15,22 @@
           }
         },
         {
-          "uses": "dtolnay/rust-toolchain@stable",
+          "uses": "actions/checkout@v5",
           "with": {
-            "targets": "aarch64-apple-ios-sim, wasm32-unknown-unknown"
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
           }
         },
         {
-          "uses": "jetli/wasm-pack-action@v0.4.0",
+          "uses": "dtolnay/rust-toolchain@stable",
           "with": {
-            "version": "v0.13.1"
+            "targets": "aarch64-apple-ios-sim"
           }
         },
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.3"
+            "bun-version": "1.3.9"
           }
         },
         {
@@ -55,19 +56,19 @@
         },
         {
           "name": "A bare page without the viewport line: the web view zooms, and this run sees it",
-          "run": "mkdir -p qntx/internal/server/dist\nsed 's|<!-- VIEWPORT -->|<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">|' ci/app-keyboard/page.html > qntx/internal/server/dist/index.html\nbash ci/app-keyboard/run.sh without\n",
+          "run": "mkdir -p qntx-web/dist\nsed 's|<!-- VIEWPORT -->|<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">|' ci/app-keyboard/page.html > qntx-web/dist/index.html\nbash ci/app-keyboard/run.sh without\n",
           "timeout-minutes": 20
         },
         {
           "if": "always()",
           "name": "The same page, with html and body pinned to the window and not scrolling",
-          "run": "(cd qntx && make web)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); a=s.index(\"<meta name=\\\"viewport\\\"\"); b=s.index(\">\", a)+1; s=s[:a]+sys.argv[2]+s[b:]; c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+\"<style>html, body { height: 100%; overflow: hidden; }</style>\"+s[c:])' qntx/internal/server/dist/index.html '<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">'\nbash ci/app-keyboard/run.sh pinned\n",
+          "run": "(cd qntx-web && bun install --frozen-lockfile)\n(cd qntx-web && bun run build)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); a=s.index(\"<meta name=\\\"viewport\\\"\"); b=s.index(\">\", a)+1; s=s[:a]+sys.argv[2]+s[b:]; c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+\"<style>html, body { height: 100%; overflow: hidden; }</style>\"+s[c:])' qntx-web/dist/index.html '<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">'\nbash ci/app-keyboard/run.sh pinned\n",
           "timeout-minutes": 20
         },
         {
           "if": "always()",
-          "name": "QNTX's page as main builds it, holding where its window stood while a field has the keyboard",
-          "run": "(cd qntx && make web)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+open(sys.argv[2]).read()+s[c:])' qntx/internal/server/dist/index.html ci/app-keyboard/hold-page.html\nbash ci/app-keyboard/run.sh page\n",
+          "name": "QNTX's page as QNTX-Web main builds it, holding where its window stood while a field has the keyboard",
+          "run": "(cd qntx-web && bun install --frozen-lockfile)\n(cd qntx-web && bun run build)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+open(sys.argv[2]).read()+s[c:])' qntx-web/dist/index.html ci/app-keyboard/hold-page.html\nbash ci/app-keyboard/run.sh page\n",
           "timeout-minutes": 20
         },
         {

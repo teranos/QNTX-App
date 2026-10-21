@@ -2,23 +2,26 @@
 
 The shell QNTX runs inside on a phone and a desktop. A WKWebView on iOS, a
 WebView on Android, a window on macOS — and in every case the thing you look at
-is QNTX's own frontend, built from QNTX main and carried inside the bundle.
+is QNTX's own frontend, built from QNTX-Web main and carried inside the bundle.
 
 ## It does not build alone
 
-There are no crates here and no frontend. Both come from
+There are no crates here and no frontend. The crates come from
 [QNTX](https://github.com/teranos/QNTX), checked out at `qntx/` beside this, at
-main. `Cargo.toml` and `frontendDist` both reach across into it. QNTX knows
-nothing of this repo; this repo is what reaches over.
+main; `Cargo.toml` reaches across into it, and the version is its `git
+describe`. The frontend comes from [QNTX-Web](https://github.com/teranos/QNTX-Web),
+checked out at `qntx-web/`, at main; `frontendDist` is its `dist/`. Neither knows
+of this repo; this repo is what reaches over.
 
 ```
 git clone https://github.com/teranos/QNTX qntx
+git clone https://github.com/teranos/QNTX-Web qntx-web
 ```
 
 ## When it builds
 
-On every push here, and on dispatch. Either way it carries QNTX main as it is
-at that moment.
+On every push here, and on dispatch. Either way it carries QNTX main and
+QNTX-Web main as they are at that moment.
 
 ## What version it is
 
