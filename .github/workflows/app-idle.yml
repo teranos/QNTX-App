@@ -23,6 +23,13 @@
           }
         },
         {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
+          }
+        },
+        {
           "uses": "dtolnay/rust-toolchain@stable",
           "with": {
             "targets": "aarch64-apple-ios-sim, wasm32-unknown-unknown"
@@ -66,7 +73,8 @@
             "BACKEND_URL": "https://api.q.sbvh.nl"
           },
           "name": "QNTX's page as the TestFlight build makes it",
-          "run": "(cd qntx && make web)"
+          "run": "bun install --frozen-lockfile\nbun run build\n",
+          "working-directory": "qntx-web"
         },
         {
           "env": {
@@ -100,6 +108,7 @@
         ".github/workflows/app-idle.yml",
         "sheet/**",
         "power/**",
+        "shake/**",
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",

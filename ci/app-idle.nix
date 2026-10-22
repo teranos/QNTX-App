@@ -18,7 +18,7 @@
   name = "App idle";
 
   on = {
-    pull_request.paths = [ "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "sheet/**" "power/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "sheet/**" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
     workflow_dispatch = null;
     # "Schedule per week": what it reads is sent to Sentry, and one run a push
     # is too few to see anything in. Monday, off the hour so it does not queue
@@ -52,6 +52,15 @@
         "with" = {
           repository = "teranos/QNTX";
           path = "qntx";
+        };
+      }
+      # The page comes from QNTX-Web main, as the shell's frontendDist expects:
+      # "web needs to leave the repo"
+      {
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/QNTX-Web";
+          path = "qntx-web";
         };
       }
       {
@@ -103,7 +112,11 @@
         # No SENTRY_DSN here: a page that reports is the app's, and a Simulator's
         # reports would be mixed with a phone's.
         env.BACKEND_URL = "https://api.q.sbvh.nl";
-        run = "(cd qntx && make web)";
+        working-directory = "qntx-web";
+        run = ''
+          bun install --frozen-lockfile
+          bun run build
+        '';
       }
       {
         name = "The app, left alone";
