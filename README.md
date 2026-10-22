@@ -50,9 +50,9 @@ link instead.
 
 ## The shake, and the snapshot it carries
 
-> i want to shake my phone and talk to an element
-
 > think ROOT SHAKE
+
+> i want to shake my phone and talk to an element
 
 > feel a shake without permission? create an agent that makes us have it
 

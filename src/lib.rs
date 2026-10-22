@@ -69,6 +69,8 @@ pub fn run() {
                 power::watch(app.handle().clone());
                 Ok(())
             })
+            // The shake, and the snapshot it carries.
+            .plugin(shake::init())
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
                 ios::ios_biometric_available,
@@ -87,6 +89,7 @@ pub fn run() {
             .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
             .plugin(sheet::init())
+            .plugin(shake::init())
             .invoke_handler(tauri::generate_handler![
                 android::android_authenticate_biometric,
                 android::android_biometric_available,
@@ -104,6 +107,7 @@ pub fn run() {
             .plugin(tauri_plugin_opener::init())
             .plugin(tauri_plugin_notification::init())
             .plugin(sheet::init())
+            .plugin(shake::init())
             .run(tauri::generate_context!()));
     }
 }
