@@ -48,6 +48,26 @@ registered the way Tauri registers native code. Off iOS the command says
 there is no sheet, and the door opens Safari and waits for the `qntx://` deep
 link instead.
 
+## The shake, and the snapshot it carries
+
+> i want to shake my phone and talk to an element
+
+> think ROOT SHAKE
+
+> feel a shake without permission? create an agent that makes us have it
+
+> and snapshot of course
+
+That is `shake/`, native like `sheet/`. The phone's own accelerometer says
+when it is shaken, CoreMotion on iOS and SensorManager on Android, and neither
+sits behind a prompt. Each shake reaches the page as the Tauri event `shake`,
+payload `{ "at": <unix ms> }`:
+`window.__TAURI__.event.listen('shake', ...)`. One command, `snapshot`,
+hands the page what the web view shows:
+`window.__TAURI__.core.invoke('plugin:shake|snapshot')` resolves
+`{ "png": "data:image/png;base64,...", "width": n, "height": n }`, pixels.
+Off a phone there is no shake, and `snapshot` says it is unsupported.
+
 ## What the pipeline proves
 
 A run is green when App Store Connect says a tester can install the build,
