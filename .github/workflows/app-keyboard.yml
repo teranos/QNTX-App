@@ -99,6 +99,7 @@
         ".github/workflows/app-keyboard.yml",
         "sheet/**",
         "power/**",
+        "shake/**",
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",
