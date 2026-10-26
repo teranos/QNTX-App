@@ -17,7 +17,9 @@
 QNTX does not run these and does not mention them. This repo reaches over, as
 it does for the build: `checks.yml` checks QNTX out at its newest `v*` tag,
 lays what is here over it at the same paths, and runs them. Each tag is
-checked once. A red run is a finding, not a gate.
+checked once. A dispatch names the QNTX ref it checks, `main`, a tag or a
+commit, and checks it whether or not it was checked before. A red run is a
+finding, not a gate.
 
 ## What is held
 
@@ -31,6 +33,8 @@ checked once. A red run is a finding, not a gate.
 
 - `internal/tools/nilcheck`, `spawncheck`, `tagcheck`, and `.golangci.yml`: Go and Rust.
 - `web/eslint.config.js`, `web/eslint-suppressions.json`, `web/font-size-ban.ts`: the web bans.
+  The page left QNTX for QNTX-Web, so `web/` is laid over QNTX-Web's main, at
+  its root, rather than over QNTX.
 - `cargo fmt --check` and `cargo clippy -Dwarnings`.
 - `web/browser/live.browser.ts` with `web/ts/specimens.ts`: every element, on the node, as its CI user.
 - `.github/workflows/live-gate.yml` and `live-verdict.yml` are kept as QNTX had them, and run nowhere.

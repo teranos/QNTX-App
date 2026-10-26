@@ -17,6 +17,7 @@ import { apiJson } from './client/http';
 import { openUserElement } from './user-element.ts';
 import { MELDABILITY } from './components/element/meld/meldability';
 import { setStanding } from './standing.ts';
+import { initSidebar, openElement } from './sidebar.ts';
 import { person } from './self-person.ts';
 import { log, SEG } from './logger.ts';
 import type { UserRecord } from './users-element.ts';
@@ -60,6 +61,9 @@ async function stand(): Promise<void> {
     // Where the node says this person stands, as main.ts asks it: the live gate's user stands where it was minted.
     setStanding((await person()).standing);
     tray.init();
+    // The sidebar before the standing elements rest in it, as main.ts has it:
+    // a standing element rests there in Button Form (QNTX-Web #5).
+    initSidebar();
     await registerDefaultElements(true);
     // What the socket pushes: the gate asks the node's socket and gives it here (browser/live.browser.ts).
     const stats = await apiJson<Record<string, unknown>>('/ws/database_stats');
@@ -67,7 +71,7 @@ async function stand(): Promise<void> {
     updateSigmaPanel(stats);
     document.getElementById('loading-screen')?.remove();
     document.body.classList.remove('disconnected');
-    window.specimens = { ids, open: (id) => tray.open(id), fits, openUser: openUserElement };
+    window.specimens = { ids, open: (id) => openElement(id), fits, openUser: openUserElement };
 }
 
 stand().catch((err: unknown) => {
