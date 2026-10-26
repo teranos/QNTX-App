@@ -3550,6 +3550,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shake",
+ "share",
  "sheet",
  "tauri",
  "tauri-build",
@@ -4491,6 +4492,17 @@ dependencies = [
  "libc",
  "sigchld",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "share"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

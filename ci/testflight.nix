@@ -186,8 +186,28 @@ in
           };
           run = ''
             python3 .github/scripts/ios-project.py gen/apple/project.yml
-            cd gen/apple && xcodegen generate
           '';
+        }
+
+        {
+          name = "Add the screenshot share extension when provisioned";
+          "if" = "vars.IOS_SHARE_EXTENSION == 'true'";
+          env = {
+            APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
+            SHARE_PROVISIONING_PROFILE = "\${{ vars.SHARE_PROVISIONING_PROFILE }}";
+            PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
+            IOS_SHARE_MOBILE_PROVISION = "\${{ secrets.IOS_SHARE_MOBILE_PROVISION }}";
+          };
+          run = ''
+            python3 -m venv "$RUNNER_TEMP/share-tools"
+            "$RUNNER_TEMP/share-tools/bin/pip" install PyYAML==6.0.3
+            python3 .github/scripts/install-share-profile.py
+            "$RUNNER_TEMP/share-tools/bin/python" .github/scripts/ios-share-project.py gen/apple/project.yml --version "''${{ steps.qntx.outputs.version }}" --build "''${{ steps.qntx.outputs.version }}.''${{ github.run_number }}"
+          '';
+        }
+        {
+          name = "Generate the signed Xcode project";
+          run = "cd gen/apple && xcodegen generate\n";
         }
 
         {
@@ -196,12 +216,16 @@ in
             IOS_CERTIFICATE = "\${{ secrets.IOS_CERTIFICATE }}";
             IOS_CERTIFICATE_PASSWORD = "\${{ secrets.IOS_CERTIFICATE_PASSWORD }}";
             IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";
+            IOS_SHARE_EXTENSION = "\${{ vars.IOS_SHARE_EXTENSION }}";
             APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
           };
           run = ''
-            cargo tauri ios build \
-              --export-method app-store-connect \
-              --build-number ''${{ github.run_number }}
+            if [ "$IOS_SHARE_EXTENSION" = "true" ]; then
+              cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
+              python3 .github/scripts/export-share-ipa.py
+            else
+              cargo tauri ios build --export-method app-store-connect --build-number ''${{ github.run_number }}
+            fi
           '';
         }
 
