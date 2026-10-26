@@ -29,6 +29,36 @@ let
     }
   ];
 
+  # The page left QNTX for QNTX-Web (QNTX #1366), which keeps no tags: its main,
+  # with checks/web/ laid over it at the paths QNTX's web/ had.
+  overQNTXWeb = [
+    { uses = "actions/checkout@v5"; }
+
+    {
+      name = "QNTX-Web at main";
+      uses = "actions/checkout@v5";
+      "with" = {
+        repository = "teranos/QNTX-Web";
+        path = "qntx-web";
+      };
+    }
+
+    {
+      name = "The web checks, laid over QNTX-Web";
+      run = "rsync -a checks/web/ qntx-web/";
+    }
+
+    {
+      uses = "oven-sh/setup-bun@v2";
+      "with".bun-version = "latest";
+    }
+
+    {
+      working-directory = "qntx-web";
+      run = "bun install --frozen-lockfile";
+    }
+  ];
+
   # Each check says what it found; one red check does not hide the next.
   always = step: step // { "if" = "always()"; };
 
@@ -157,32 +187,22 @@ in
       needs = "tag";
       "if" = fresh;
       runs-on = "ubuntu-latest";
-      steps = overQNTX ++ [
-        {
-          uses = "oven-sh/setup-bun@v2";
-          "with".bun-version = "latest";
-        }
-
-        {
-          working-directory = "qntx/web";
-          run = "bun install";
-        }
-
+      steps = overQNTXWeb ++ [
         {
           name = "The web bans";
-          working-directory = "qntx/web";
+          working-directory = "qntx-web";
           run = "bun x eslint ts --max-warnings 0";
         }
 
         (always {
           name = "Text size is the package's";
-          working-directory = "qntx/web";
+          working-directory = "qntx-web";
           run = "bun run font-size-ban.ts";
         })
 
         (always {
           name = "The bans' own tests";
-          working-directory = "qntx/web";
+          working-directory = "qntx-web";
           run = "bun test font-size-ban.test.ts ts/table-cell.lint.test.ts";
         })
       ];
@@ -216,41 +236,21 @@ in
       ];
     };
 
-    # Every element of the tag's page, against the node, as its CI user (checks/web/browser).
+    # Every element of QNTX-Web's page, against the node, as its CI user (checks/web/browser).
+    # The page takes ats-wasm and laye-p2p from QNTX's release, as packages.
     elements = {
       needs = "tag";
       "if" = fresh;
       runs-on = "ubuntu-latest";
-      steps = overQNTX ++ [
+      steps = overQNTXWeb ++ [
         {
-          uses = "dtolnay/rust-toolchain@stable";
-          "with".targets = "wasm32-unknown-unknown";
-        }
-
-        {
-          working-directory = "qntx";
-          run = ''
-            cargo install wasm-pack --locked
-            make ats laye
-          '';
-        }
-
-        {
-          uses = "oven-sh/setup-bun@v2";
-          "with".bun-version = "latest";
-        }
-
-        {
-          working-directory = "qntx/web";
-          run = ''
-            bun install
-            bunx playwright install --with-deps chromium webkit
-          '';
+          working-directory = "qntx-web";
+          run = "bunx playwright install --with-deps chromium webkit";
         }
 
         {
           name = "Every element can be reached whole";
-          working-directory = "qntx/web";
+          working-directory = "qntx-web";
           env = {
             CI = "1";
             QNTX_GATE_API = "\${{ vars.QNTX_GATE_API }}";

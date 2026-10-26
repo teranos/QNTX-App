@@ -36,28 +36,16 @@
           "uses": "actions/checkout@v5"
         },
         {
-          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "name": "QNTX-Web at main",
           "uses": "actions/checkout@v5",
           "with": {
-            "fetch-depth": 0,
-            "path": "qntx",
-            "ref": "${{ needs.tag.outputs.tag }}",
-            "repository": "teranos/QNTX"
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
           }
         },
         {
-          "name": "The checks, laid over QNTX",
-          "run": "rsync -a --exclude README.md checks/ qntx/"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@stable",
-          "with": {
-            "targets": "wasm32-unknown-unknown"
-          }
-        },
-        {
-          "run": "cargo install wasm-pack --locked\nmake ats laye\n",
-          "working-directory": "qntx"
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
         },
         {
           "uses": "oven-sh/setup-bun@v2",
@@ -66,8 +54,12 @@
           }
         },
         {
-          "run": "bun install\nbunx playwright install --with-deps chromium webkit\n",
-          "working-directory": "qntx/web"
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
+        },
+        {
+          "run": "bunx playwright install --with-deps chromium webkit",
+          "working-directory": "qntx-web"
         },
         {
           "env": {
@@ -78,7 +70,7 @@
           },
           "name": "Every element can be reached whole",
           "run": "bunx playwright test -c browser live.browser.ts --workers 1",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         }
       ]
     },
@@ -228,18 +220,16 @@
           "uses": "actions/checkout@v5"
         },
         {
-          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "name": "QNTX-Web at main",
           "uses": "actions/checkout@v5",
           "with": {
-            "fetch-depth": 0,
-            "path": "qntx",
-            "ref": "${{ needs.tag.outputs.tag }}",
-            "repository": "teranos/QNTX"
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
           }
         },
         {
-          "name": "The checks, laid over QNTX",
-          "run": "rsync -a --exclude README.md checks/ qntx/"
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
         },
         {
           "uses": "oven-sh/setup-bun@v2",
@@ -248,25 +238,25 @@
           }
         },
         {
-          "run": "bun install",
-          "working-directory": "qntx/web"
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
         },
         {
           "name": "The web bans",
           "run": "bun x eslint ts --max-warnings 0",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         },
         {
           "if": "always()",
           "name": "Text size is the package's",
           "run": "bun run font-size-ban.ts",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         },
         {
           "if": "always()",
           "name": "The bans' own tests",
           "run": "bun test font-size-ban.test.ts ts/table-cell.lint.test.ts",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         }
       ]
     }

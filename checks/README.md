@@ -33,6 +33,8 @@ finding, not a gate.
 
 - `internal/tools/nilcheck`, `spawncheck`, `tagcheck`, and `.golangci.yml`: Go and Rust.
 - `web/eslint.config.js`, `web/eslint-suppressions.json`, `web/font-size-ban.ts`: the web bans.
+  The page left QNTX for QNTX-Web, so `web/` is laid over QNTX-Web's main, at
+  its root, rather than over QNTX.
 - `cargo fmt --check` and `cargo clippy -Dwarnings`.
 - `web/browser/live.browser.ts` with `web/ts/specimens.ts`: every element, on the node, as its CI user.
 - `.github/workflows/live-gate.yml` and `live-verdict.yml` are kept as QNTX had them, and run nowhere.
