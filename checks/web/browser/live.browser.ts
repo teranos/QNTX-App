@@ -334,7 +334,9 @@ test('every element, live, can be reached whole', async ({ page }) => {
             await open();
             const element = page.locator(`[data-element-id="${id}"]`);
             // As long as the wire is waited on: a simulated iPhone opens an element slower than the default allows.
-            await expect.poll(() => element.evaluate((el) => (el as HTMLElement).dataset.form), { message: `${id} is still a dot`, timeout: QUIET_FOR_MS }).not.toBe('dot');
+            // A standing element rests in the sidebar as a button, a temporal one in the tray as a dot (QNTX-Web #5):
+            // neither is what opening it makes.
+            await expect.poll(() => element.evaluate((el) => { const form = (el as HTMLElement).dataset.form; return form === 'dot' || form === 'button'; }), { message: `${id} is still resting`, timeout: QUIET_FOR_MS }).toBe(false);
             await expect.poll(() => element.evaluate((el) => el.classList.contains('morphing')), { message: `${id} is still opening`, timeout: QUIET_FOR_MS }).toBe(false);
             // An element that asks the node all the time is never quiet: it is measured once the wait is over.
             await quiet(page, wire);
