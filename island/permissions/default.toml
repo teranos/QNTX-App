@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "The page may start, move and end the island an approval stands on"
+permissions = ["allow-start", "allow-update", "allow-end"]
