@@ -79,3 +79,17 @@ not when the upload returned. Export compliance is answered in
 
 An Apple distribution certificate and an App Store provisioning profile, held
 as secrets here. A build lands in TestFlight and updates itself from there.
+
+## Screenshots shared from another iPhone app
+
+`share/` receives PNG/JPEG screenshots through an iOS Share Extension. A batch
+keeps the selected order and an optional note in an App Group container until
+QNTX's frontend explicitly acknowledges it. The extension saves locally and
+asks the person to choose their agent in QNTX; it never guesses a recipient or
+uploads under a cached identity.
+
+This is the App-side handoff. The frontend inbox/agent chooser and multiple-image
+agent submission are follow-up work. Distribution stays disabled until that
+consumer and the App Group provisioning are ready. See [share/README.md](share/README.md)
+for the bridge, signing setup, and device acceptance checks. Android receiving
+is not implemented by this iOS increment.

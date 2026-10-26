@@ -45,6 +45,8 @@ power = { path = "power" }
 # The shake a phone feels, and the snapshot of the web view it carries. Off a
 # phone the snapshot says it cannot, and nothing shakes.
 shake = { path = "shake" }
+# Incoming screenshots from the iOS share sheet.
+share = { path = "share" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
 # rustls, not native-tls: native-tls needs openssl-sys, uncompilable for Android.

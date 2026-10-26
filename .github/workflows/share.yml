@@ -1,0 +1,17 @@
+name: Screenshot share
+on:
+  pull_request:
+    paths: ['share/**', '.github/scripts/*share*', '.github/workflows/share.yml', 'Cargo.toml', 'src/lib.rs']
+  workflow_dispatch:
+jobs:
+  native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install PyYAML==6.0.3
+      - run: python3 .github/scripts/test-ios-share-project.py
+      - run: command -v xcodegen || brew install xcodegen
+      - run: bash .github/scripts/check-share-native.sh
