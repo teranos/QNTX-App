@@ -69,7 +69,7 @@ def configure(path, version, build, team='', profile='', unsigned=False):
         'type': 'app-extension', 'platform': 'iOS', 'deploymentTarget': '15.0',
         'sources': [{'path': relative('share/extension/ShareViewController.swift')}],
         'dependencies': [{'package': 'InboxCore'}, {'sdk': 'Social.framework'}, {'sdk': 'ImageIO.framework'}],
-        'settings': {'base': settings},
+        'settings': {'base': settings}, 'scheme': {},
     }
     path.write_text(yaml.safe_dump(project, sort_keys=False))
 

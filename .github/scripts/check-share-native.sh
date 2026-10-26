@@ -15,4 +15,4 @@ targets:
 YAML
 python3 .github/scripts/ios-share-project.py gen/share-check/project.yml --version 1.0.0 --build 1.0.0.1 --unsigned
 (cd gen/share-check && xcodegen generate)
-xcodebuild -project gen/share-check/ShareCheck.xcodeproj -target QNTXShare -configuration Debug -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project gen/share-check/ShareCheck.xcodeproj -scheme QNTXShare -configuration Debug -destination "generic/platform=iOS Simulator" -derivedDataPath gen/share-check/DerivedData CODE_SIGNING_ALLOWED=NO build
