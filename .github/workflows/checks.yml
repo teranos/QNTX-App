@@ -5,7 +5,7 @@
   },
   "jobs": {
     "checked": {
-      "if": "always() && needs.tag.outputs.fresh == 'true'",
+      "if": "always() && github.event_name == 'schedule' && needs.tag.outputs.fresh == 'true'",
       "needs": [
         "tag",
         "go",
@@ -141,7 +141,7 @@
         {
           "if": "always()",
           "name": "golangci, on what changed since the tag before",
-          "run": "before=$(git tag -l 'v*' | sort -V | grep -B1 -x -F '${{ needs.tag.outputs.tag }}' | head -1)\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
+          "run": "before=$(git describe --tags --abbrev=0 --match 'v*' HEAD^)\necho \"golangci reads what changed since $before\"\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
           "working-directory": "qntx"
         }
       ]
@@ -192,18 +192,23 @@
     },
     "tag": {
       "outputs": {
-        "fresh": "${{ steps.seen.outputs.cache-hit != 'true' }}",
+        "fresh": "${{ github.event_name == 'workflow_dispatch' || steps.seen.outputs.cache-hit != 'true' }}",
         "tag": "${{ steps.newest.outputs.tag }}"
       },
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "env": {
+            "ASKED": "${{ inputs.ref }}",
+            "EVENT": "${{ github.event_name }}"
+          },
           "id": "newest",
-          "name": "QNTX's newest tag",
-          "run": "newest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
+          "name": "QNTX's newest tag, or the ref a dispatch names",
+          "run": "if [ \"$EVENT\" = workflow_dispatch ]; then\n  echo \"tag=$ASKED\" >> \"$GITHUB_OUTPUT\"\n  echo \"The dispatch asks for $ASKED\"\n  exit 0\nfi\nnewest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
         },
         {
           "id": "seen",
+          "if": "github.event_name == 'schedule'",
           "name": "Whether it was checked",
           "uses": "actions/cache/restore@v4",
           "with": {
@@ -273,6 +278,14 @@
         "cron": "17 * * * *"
       }
     ],
-    "workflow_dispatch": null
+    "workflow_dispatch": {
+      "inputs": {
+        "ref": {
+          "description": "The QNTX ref to check: main, a tag or a commit",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
   }
 }
