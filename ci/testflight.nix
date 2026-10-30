@@ -34,6 +34,12 @@ in
         type = "string";
         default = "";
       };
+      # "and web version tag should trigger mobile build": the tag of QNTX-Web the page is built from.
+      web_ref = {
+        description = "the QNTX-Web ref the page is built from: a tag, or main";
+        type = "string";
+        default = "main";
+      };
     };
   };
 
@@ -83,7 +89,7 @@ in
           uses = "actions/checkout@v5";
           "with" = {
             repository = "teranos/QNTX-Web";
-            ref = "main";
+            ref = "\${{ inputs.web_ref || 'main' }}";
             path = "qntx-web";
           };
         }

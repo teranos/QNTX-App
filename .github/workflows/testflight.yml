@@ -21,7 +21,7 @@
           "uses": "actions/checkout@v5",
           "with": {
             "path": "qntx-web",
-            "ref": "main",
+            "ref": "${{ inputs.web_ref || 'main' }}",
             "repository": "teranos/QNTX-Web"
           }
         },
@@ -155,6 +155,11 @@
         "ground": {
           "default": "",
           "description": "the performance and rite that dispatched this",
+          "type": "string"
+        },
+        "web_ref": {
+          "default": "main",
+          "description": "the QNTX-Web ref the page is built from: a tag, or main",
           "type": "string"
         }
       }
