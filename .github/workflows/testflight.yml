@@ -81,6 +81,7 @@
         {
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
+            "ISLAND_PROVISIONING_PROFILE": "${{ vars.ISLAND_PROVISIONING_PROFILE }}",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },
           "name": "Sign against the profile, not an account",
