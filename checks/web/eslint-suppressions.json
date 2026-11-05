@@ -51,7 +51,7 @@
   },
   "ts/api/canvas-sync.ts": {
     "no-restricted-syntax": {
-      "count": 9
+      "count": 10
     }
   },
   "ts/api/canvas.ts": {
@@ -857,11 +857,6 @@
   "ts/status-indicators.ts": {
     "no-restricted-syntax": {
       "count": 9
-    }
-  },
-  "ts/sync-badge.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "ts/system-drawer.ts": {
