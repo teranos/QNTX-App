@@ -859,11 +859,6 @@
       "count": 9
     }
   },
-  "ts/sync-badge.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "ts/system-drawer.ts": {
     "no-restricted-syntax": {
       "count": 3
