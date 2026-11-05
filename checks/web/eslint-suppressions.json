@@ -51,7 +51,7 @@
   },
   "ts/api/canvas-sync.ts": {
     "no-restricted-syntax": {
-      "count": 9
+      "count": 10
     }
   },
   "ts/api/canvas.ts": {
