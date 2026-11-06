@@ -169,6 +169,7 @@ in
           name = "Fetch tauri-cli 2.11.4";
           run = ''
             curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip
+            mkdir -p "$HOME/.cargo/bin"
             unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
             rm cargo-tauri.zip
             cargo tauri --version
