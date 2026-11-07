@@ -10,9 +10,13 @@ in
   run-name = "android \${{ github.ref_name }} \${{ inputs.ground }}";
 
   # No store to update itself from here, so the build is the release: a tagged GitHub Release carrying the signed APK, which is what the app's own in-app updater will come to check against.
+  #
+  # The Android build waits: it runs only when dispatched by hand. A push builds TestFlight (ci/testflight.nix) and nothing else.
+  # "disable the android build, make it so there is no doubt that the testflight build is what i care about, i might want to enable the android build in the future, but the android build isnt critical now"
+  # To have it build on push again, put back under `on`, as testflight.nix has it:
+  #   push.paths-ignore = [ "checks/**" "ci/checks.nix" ".github/workflows/checks.yml" ];
+  # and emit the yml (line 1).
   on = {
-    # QNTX's checks are no build of the shell.
-    push.paths-ignore = [ "checks/**" "ci/checks.nix" ".github/workflows/checks.yml" ];
     workflow_dispatch.inputs = {
       backend_url = {
         description = "API origin baked into the bundle";
