@@ -79,3 +79,8 @@ not when the upload returned. Export compliance is answered in
 
 An Apple distribution certificate and an App Store provisioning profile, held
 as secrets here. A build lands in TestFlight and updates itself from there.
+
+TestFlight is the build that counts. The Android build (`ci/android.nix`)
+waits: it runs only when dispatched by hand.
+
+"the android build isnt critical now"

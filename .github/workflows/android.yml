@@ -138,13 +138,6 @@
   },
   "name": "android",
   "on": {
-    "push": {
-      "paths-ignore": [
-        "checks/**",
-        "ci/checks.nix",
-        ".github/workflows/checks.yml"
-      ]
-    },
     "workflow_dispatch": {
       "inputs": {
         "backend_url": {
