@@ -150,8 +150,9 @@ async function unreachable(page: Page, id: string): Promise<string[]> {
             if (r.width === 0 && r.height === 0) return false;
             // A table the package made scrolls sideways in its own box (Elements' table.ts, data-scroller="sideways"):
             // what is in it is reached by scrolling the box, and the box is what has to stand inside the element.
+            // Only a box strictly inside the element that does clip: marked, but overflow written visible, it scrolls nothing.
             const box = node.closest('[data-scroller="sideways"]');
-            if (box !== null && element.contains(box)) {
+            if (box !== null && box !== element && element.contains(box) && ['auto', 'scroll'].includes(getComputedStyle(box).overflowX)) {
                 if (node !== box) return false;
                 return r.left < edge.left - 1 || r.right > edge.right + 1;
             }
