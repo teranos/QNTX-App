@@ -110,6 +110,7 @@
         "power/**",
         "shake/**",
         "island/**",
+        "push/**",
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",

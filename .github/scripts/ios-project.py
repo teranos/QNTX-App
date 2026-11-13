@@ -11,6 +11,7 @@ here rather than producing a project that builds unsigned.
 """
 
 import os
+import plistlib
 import sys
 
 TEAM = os.environ["APPLE_DEVELOPMENT_TEAM"]
@@ -55,6 +56,28 @@ ISLAND_TARGET = """  IslandWidget:
 """
 
 
+# Where the template names the app's entitlements file, which cargo-mobile2
+# writes empty beside the project.
+ENTITLEMENTS = "    entitlements:"
+ENTITLEMENTS_PATH = "      path: "
+
+
+def reached_by_the_node(path, lines):
+    """The app takes notifications the node sends through Apple: without
+    aps-environment in its entitlements, Apple gives the phone no push token.
+    The provisioning profile carries it; this is the app saying it too."""
+    named = lines[lines.index(ENTITLEMENTS) + 1]
+    if not named.startswith(ENTITLEMENTS_PATH):
+        raise ValueError("the template names no entitlements path under entitlements: " + named)
+    at = os.path.join(os.path.dirname(path), named[len(ENTITLEMENTS_PATH):].strip())
+    with open(at, "rb") as held:
+        entitled = plistlib.load(held)
+    entitled["aps-environment"] = "production"
+    with open(at, "wb") as held:
+        plistlib.dump(entitled, held)
+    print("entitlements:", at, sorted(entitled))
+
+
 def main(path):
     lines = open(path).read().split("\n")
 
@@ -77,6 +100,8 @@ def main(path):
         ]
         # targets: is the template's last key, so a target appended is one of them.
         lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island))
+
+    reached_by_the_node(path, lines)
 
     open(path, "w").write("\n".join(lines))
     print("\n".join(lines[at - 4:at + 6]))

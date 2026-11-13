@@ -48,6 +48,9 @@ shake = { path = "shake" }
 # An approval on the Dynamic Island, as a Live Activity. Off iOS it says it
 # cannot.
 island = { path = "island" }
+# The token Apple gives a phone, for the node to reach it by. Off iOS it says
+# it cannot.
+push = { path = "push" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
 # rustls, not native-tls: native-tls needs openssl-sys, uncompilable for Android.
