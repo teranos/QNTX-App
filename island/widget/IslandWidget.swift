@@ -2,11 +2,11 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-// The island an approval stands on: the compact pill, the view held open, and
-// the lock screen. The presses come with #11; this draws what stands.
+// 「[Opus 5.5, Fable 5.2] The island an approval stands on: the compact pill, the view held open, and」
+// 「[Opus 5.5, Fable 5.2] the lock screen. The presses come with #11; this draws what stands.」
 //
-// QNTX's own look: near-black surfaces, the botanical green, JetBrains Mono's
-// stand-in (the system monospace), SEG glyphs and no emoji.
+// 「[Opus 5.5, Fable 5.2] QNTX's own look: near-black surfaces, the botanical green, JetBrains Mono's」
+// 「[Opus 5.5, Fable 5.2] stand-in (the system monospace), SEG glyphs and no emoji.」
 
 private let accent = Color(red: 0x7d / 255, green: 0xba / 255, blue: 0x8a / 255)
 private let onDark = Color(red: 0xdf / 255, green: 0xe1 / 255, blue: 0xe0 / 255)
@@ -14,7 +14,7 @@ private let onDarkSecondary = Color(red: 0xa9 / 255, green: 0xab / 255, blue: 0x
 private let onDarkTertiary = Color(red: 0x86 / 255, green: 0x87 / 255, blue: 0x87 / 255)
 private let surface = Color(red: 0x1a / 255, green: 0x1b / 255, blue: 0x1a / 255)
 
-// The segment a check is drawn as.
+// 「[Opus 5.5, Fable 5.2] The segment a check is drawn as.」
 private func colorOf(_ state: String) -> Color {
   switch state {
   case "done": return Color(red: 0x22 / 255, green: 0xc6 / 255, blue: 0x5e / 255)
@@ -51,11 +51,11 @@ private func summaryOf(_ checks: [IslandCheck]) -> String {
 
 private let mono = Font.system(size: 11, design: .monospaced)
 
-// The widget target deploys at iOS 16.1, where Live Activities begin.
+// 「[Opus 5.5, Fable 5.2] The widget target deploys at iOS 16.1, where Live Activities begin.」
 struct IslandLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: IslandAttributes.self) { context in
-      // The lock screen.
+      // 「[Opus 5.5, Fable 5.2] The lock screen.」
       VStack(alignment: .leading, spacing: 10) {
         HStack {
           Text("꩜ qntx · approvals").font(mono).foregroundColor(onDarkTertiary)
