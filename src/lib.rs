@@ -72,6 +72,8 @@ pub fn run() {
             // The shake, and the snapshot it carries.
             .plugin(shake::init())
             .plugin(share::init())
+            // "the magic island": an approval as a Live Activity.
+            .plugin(island::init())
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
                 ios::ios_biometric_available,
@@ -92,6 +94,7 @@ pub fn run() {
             .plugin(sheet::init())
             .plugin(shake::init())
             .plugin(share::init())
+            .plugin(island::init())
             .invoke_handler(tauri::generate_handler![
                 android::android_authenticate_biometric,
                 android::android_biometric_available,
@@ -111,6 +114,7 @@ pub fn run() {
             .plugin(sheet::init())
             .plugin(shake::init())
             .plugin(share::init())
+            .plugin(island::init())
             .run(tauri::generate_context!()));
     }
 }

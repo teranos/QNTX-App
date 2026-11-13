@@ -81,6 +81,7 @@
         {
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
+            "ISLAND_PROVISIONING_PROFILE": "${{ vars.ISLAND_PROVISIONING_PROFILE }}",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },
           "name": "Sign against the profile, not an account",
@@ -121,10 +122,12 @@
           "env": {
             "APPLE_API_ISSUER": "${{ secrets.APPLE_API_ISSUER }}",
             "APPLE_API_KEY": "${{ secrets.APPLE_API_KEY }}",
-            "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}"
+            "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}",
+            "APPLE_APP_ID": "${{ vars.APPLE_APP_ID }}",
+            "IPA": "${{ steps.ipa.outputs.path }}"
           },
           "name": "Upload to TestFlight",
-          "run": "mkdir -p ~/.appstoreconnect/private_keys\necho \"$APPLE_API_KEY_CONTENT\" | base64 --decode \\\n  > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8\nxcrun altool --upload-app \\\n  -f \"${{ steps.ipa.outputs.path }}\" \\\n  --api-key \"$APPLE_API_KEY\" \\\n  --api-issuer \"$APPLE_API_ISSUER\"\n"
+          "run": "test -n \"$APPLE_APP_ID\"\nmkdir -p ~/.appstoreconnect/private_keys\necho \"$APPLE_API_KEY_CONTENT\" | base64 --decode \\\n  > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8\nplist=$(mktemp)\nunzip -p \"$IPA\" 'Payload/*.app/Info.plist' > \"$plist\"\nbundle=$(plutil -extract CFBundleIdentifier raw \"$plist\")\nbuild=$(plutil -extract CFBundleVersion raw \"$plist\")\nshort=$(plutil -extract CFBundleShortVersionString raw \"$plist\")\necho \"uploading $bundle $short ($build)\"\nxcrun altool --upload-package \"$IPA\" \\\n  --type ios \\\n  --apple-id \"$APPLE_APP_ID\" \\\n  --bundle-id \"$bundle\" \\\n  --bundle-version \"$build\" \\\n  --bundle-short-version-string \"$short\" \\\n  --api-key \"$APPLE_API_KEY\" \\\n  --api-issuer \"$APPLE_API_ISSUER\"\n"
         },
         {
           "env": {
