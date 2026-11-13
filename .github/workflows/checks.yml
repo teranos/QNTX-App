@@ -5,7 +5,7 @@
   },
   "jobs": {
     "checked": {
-      "if": "always() && needs.tag.outputs.fresh == 'true'",
+      "if": "always() && github.event_name == 'schedule' && needs.tag.outputs.fresh == 'true'",
       "needs": [
         "tag",
         "go",
@@ -36,28 +36,16 @@
           "uses": "actions/checkout@v5"
         },
         {
-          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "name": "QNTX-Web at main",
           "uses": "actions/checkout@v5",
           "with": {
-            "fetch-depth": 0,
-            "path": "qntx",
-            "ref": "${{ needs.tag.outputs.tag }}",
-            "repository": "teranos/QNTX"
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
           }
         },
         {
-          "name": "The checks, laid over QNTX",
-          "run": "rsync -a --exclude README.md checks/ qntx/"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@stable",
-          "with": {
-            "targets": "wasm32-unknown-unknown"
-          }
-        },
-        {
-          "run": "cargo install wasm-pack --locked\nmake ats laye\n",
-          "working-directory": "qntx"
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
         },
         {
           "uses": "oven-sh/setup-bun@v2",
@@ -66,8 +54,12 @@
           }
         },
         {
-          "run": "bun install\nbunx playwright install --with-deps chromium webkit\n",
-          "working-directory": "qntx/web"
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
+        },
+        {
+          "run": "bunx playwright install --with-deps chromium webkit",
+          "working-directory": "qntx-web"
         },
         {
           "env": {
@@ -78,7 +70,7 @@
           },
           "name": "Every element can be reached whole",
           "run": "bunx playwright test -c browser live.browser.ts --workers 1",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         }
       ]
     },
@@ -141,7 +133,7 @@
         {
           "if": "always()",
           "name": "golangci, on what changed since the tag before",
-          "run": "before=$(git tag -l 'v*' | sort -V | grep -B1 -x -F '${{ needs.tag.outputs.tag }}' | head -1)\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
+          "run": "before=$(git describe --tags --abbrev=0 --match 'v*' HEAD^)\necho \"golangci reads what changed since $before\"\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
           "working-directory": "qntx"
         }
       ]
@@ -192,18 +184,23 @@
     },
     "tag": {
       "outputs": {
-        "fresh": "${{ steps.seen.outputs.cache-hit != 'true' }}",
+        "fresh": "${{ github.event_name == 'workflow_dispatch' || steps.seen.outputs.cache-hit != 'true' }}",
         "tag": "${{ steps.newest.outputs.tag }}"
       },
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "env": {
+            "ASKED": "${{ inputs.ref }}",
+            "EVENT": "${{ github.event_name }}"
+          },
           "id": "newest",
-          "name": "QNTX's newest tag",
-          "run": "newest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
+          "name": "QNTX's newest tag, or the ref a dispatch names",
+          "run": "if [ \"$EVENT\" = workflow_dispatch ]; then\n  echo \"tag=$ASKED\" >> \"$GITHUB_OUTPUT\"\n  echo \"The dispatch asks for $ASKED\"\n  exit 0\nfi\nnewest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
         },
         {
           "id": "seen",
+          "if": "github.event_name == 'schedule'",
           "name": "Whether it was checked",
           "uses": "actions/cache/restore@v4",
           "with": {
@@ -223,18 +220,16 @@
           "uses": "actions/checkout@v5"
         },
         {
-          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "name": "QNTX-Web at main",
           "uses": "actions/checkout@v5",
           "with": {
-            "fetch-depth": 0,
-            "path": "qntx",
-            "ref": "${{ needs.tag.outputs.tag }}",
-            "repository": "teranos/QNTX"
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
           }
         },
         {
-          "name": "The checks, laid over QNTX",
-          "run": "rsync -a --exclude README.md checks/ qntx/"
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
         },
         {
           "uses": "oven-sh/setup-bun@v2",
@@ -243,25 +238,25 @@
           }
         },
         {
-          "run": "bun install",
-          "working-directory": "qntx/web"
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
         },
         {
           "name": "The web bans",
           "run": "bun x eslint ts --max-warnings 0",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         },
         {
           "if": "always()",
           "name": "Text size is the package's",
           "run": "bun run font-size-ban.ts",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         },
         {
           "if": "always()",
           "name": "The bans' own tests",
           "run": "bun test font-size-ban.test.ts ts/table-cell.lint.test.ts",
-          "working-directory": "qntx/web"
+          "working-directory": "qntx-web"
         }
       ]
     }
@@ -273,6 +268,14 @@
         "cron": "17 * * * *"
       }
     ],
-    "workflow_dispatch": null
+    "workflow_dispatch": {
+      "inputs": {
+        "ref": {
+          "description": "The QNTX ref to check: main, a tag or a commit",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
   }
 }

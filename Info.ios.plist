@@ -12,5 +12,18 @@
          refuses every Activity.request the app makes. -->
     <key>NSSupportsLiveActivities</key>
     <true/>
+    <!-- qntx:// from Safari: without this the phone answered "The application
+         required to open that link can't be found." -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>nl.sbvh.qntx</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>qntx</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

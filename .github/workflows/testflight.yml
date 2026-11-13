@@ -21,7 +21,7 @@
           "uses": "actions/checkout@v5",
           "with": {
             "path": "qntx-web",
-            "ref": "main",
+            "ref": "${{ inputs.web_ref || 'main' }}",
             "repository": "teranos/QNTX-Web"
           }
         },
@@ -69,7 +69,7 @@
         },
         {
           "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
         },
         {
           "name": "The app is versioned as QNTX's newest release",
@@ -156,6 +156,11 @@
         "ground": {
           "default": "",
           "description": "the performance and rite that dispatched this",
+          "type": "string"
+        },
+        "web_ref": {
+          "default": "main",
+          "description": "the QNTX-Web ref the page is built from: a tag, or main",
           "type": "string"
         }
       }
