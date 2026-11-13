@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for QNTX desktop app",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     {
@@ -33,6 +35,7 @@
     "opener:allow-default-urls",
     "sheet:default",
     "shake:default",
+    "share:default",
     "island:default",
     "push:default"
   ]

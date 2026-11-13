@@ -84,3 +84,17 @@ TestFlight is the build that counts. The Android build (`ci/android.nix`)
 waits: it runs only when dispatched by hand.
 
 "the android build isnt critical now"
+
+## Screenshots shared from another iPhone app
+
+`share/` receives PNG/JPEG screenshots through an iOS Share Extension. A batch
+keeps the selected order and an optional note in an App Group container until
+QNTX's frontend explicitly acknowledges it. The extension saves locally and
+asks the person to choose their agent in QNTX; it never guesses a recipient or
+uploads under a cached identity.
+
+This is the App-side handoff. The frontend inbox/agent chooser and multiple-image
+agent submission are follow-up work. Distribution stays disabled until that
+consumer and the App Group provisioning are ready. See [share/README.md](share/README.md)
+for the bridge, signing setup, and device acceptance checks. Android receiving
+is not implemented by this iOS increment.
