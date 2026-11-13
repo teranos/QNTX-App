@@ -21,8 +21,8 @@ public enum InboxFailure: LocalizedError {
     }
 }
 
-/// Immutable, complete batches only. Listing and reading never consume a share.
-/// A draft is published by one directory rename, on the same filesystem.
+/// 「[Fable 5.2] Immutable, complete batches only. Listing and reading never consume a share.」
+/// 「[Fable 5.2] A draft is published by one directory rename, on the same filesystem.」
 public final class Inbox {
     public static let group = "group.nl.sbvh.qntx"
     public static let maxImages = 10
@@ -67,8 +67,8 @@ public final class Inbox {
         return (image, data)
     }
 
-    /// Call only after durable import/delivery, or an explicit user discard.
-    /// Retrying an acknowledgement is harmless; other batches are untouched.
+    /// 「[Fable 5.2] Call only after durable import/delivery, or an explicit user discard.」
+    /// 「[Fable 5.2] Retrying an acknowledgement is harmless; other batches are untouched.」
     public func acknowledge(id: String) throws {
         let folder = try location(id)
         if files.fileExists(atPath: folder.path) { try files.removeItem(at: folder) }
