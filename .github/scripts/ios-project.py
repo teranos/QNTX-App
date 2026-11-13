@@ -23,12 +23,12 @@ FLOOR_TO = "    iOS: 15.0"
 # The group the target template already pulls in via `groups: [app]`.
 ANCHOR = "      PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.qntx"
 
-# The app target's last dependency in the template: the island is embedded after it.
+# 「[Opus 5.5, Fable 5.2] The app target's last dependency in the template: the island is embedded after it.」
 EMBED_AFTER = "      - sdk: WebKit.framework"
 
-# "the magic island": the widget that draws an approval as a Live Activity. It
-# is its own bundle, signed by its own profile, so it is in the project only
-# when that profile is named. Paths are relative to gen/apple.
+# 「[Opus 5.5, Fable 5.2] "the magic island": the widget that draws an approval as a Live Activity. It」
+# 「[Opus 5.5, Fable 5.2] is its own bundle, signed by its own profile, so it is in the project only」
+# 「[Opus 5.5, Fable 5.2] when that profile is named. Paths are relative to gen/apple.」
 ISLAND_ID = "nl.sbvh.qntx.island"
 ISLAND_TARGET = """  IslandWidget:
     type: app-extension
@@ -75,7 +75,7 @@ def main(path):
             "      - target: IslandWidget",
             "        embed: true",
         ]
-        # targets: is the template's last key, so a target appended is one of them.
+        # 「[Opus 5.5, Fable 5.2] targets: is the template's last key, so a target appended is one of them.」
         lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island))
 
     open(path, "w").write("\n".join(lines))
