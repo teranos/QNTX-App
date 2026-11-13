@@ -31,6 +31,25 @@ final class WaitsTokens: NSObject {
     begun = true
     waitsIsSeen("begun activities=\(ActivityAuthorizationInfo().areActivitiesEnabled) starts=\(Activity<WaitsAttributes>.pushToStartToken != nil)")
 
+    // Apple gives the token to start by to an app that is registered with its
+    // push service, and not always to one that is not: said in Apple's own
+    // answers on its forums (threads 835188, 761214), and in no documentation.
+    // What Apple hands the app's delegate for it is of another kind and is
+    // not used; the registering is what this is for.
+    DispatchQueue.main.async {
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+    // The sequence below says a token Apple made later, and not always one it
+    // made before anybody listened: it is read again after a moment, and again.
+    Task {
+      for wait in [3, 15, 60, 300] as [UInt64] {
+        try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+        let has = Activity<WaitsAttributes>.pushToStartToken != nil
+        waitsIsSeen("after-\(wait)s starts=\(has)")
+        await handAll()
+        if has { return }
+      }
+    }
     Task {
       for await token in Activity<WaitsAttributes>.pushToStartTokenUpdates {
         waitsIsSeen("apple-gave-a-token-to-start-by")
