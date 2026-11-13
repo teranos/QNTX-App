@@ -90,7 +90,8 @@ final class WaitsTokens: NSObject {
     let of = WaitsAttributes(waits: ofThisPhone, kind: "this phone", title: "")
     let shows = WaitsAttributes.ContentState(says: "reached by your node", preview: "", due: 0, segments: [], presses: [])
     do {
-      let one = try Activity.request(attributes: of, content: ActivityContent(state: shows, staleDate: nil), pushType: .token)
+      let one = try Activity<WaitsAttributes>.request(
+        attributes: of, content: ActivityContent(state: shows, staleDate: nil), pushType: .token)
       waitsIsSeen("started-one-here")
       try? await Task.sleep(nanoseconds: 8_000_000_000)
       await one.end(ActivityContent(state: shows, staleDate: nil), dismissalPolicy: .immediate)
