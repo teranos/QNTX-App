@@ -71,7 +71,7 @@ pub fn run() {
             })
             // The shake, and the snapshot it carries.
             .plugin(shake::init())
-            // "the magic island": an approval as a Live Activity.
+            // 「[Opus 5.5, Fable 5.2] "the magic island": an approval as a Live Activity.」
             .plugin(island::init())
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
