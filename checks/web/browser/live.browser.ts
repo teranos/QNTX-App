@@ -148,6 +148,14 @@ async function unreachable(page: Page, id: string): Promise<string[]> {
             }
             const r = node.getBoundingClientRect();
             if (r.width === 0 && r.height === 0) return false;
+            // A table the package made scrolls sideways in its own box (Elements' table.ts, data-scroller="sideways"):
+            // what is in it is reached by scrolling the box, and the box is what has to stand inside the element.
+            // Only a box strictly inside the element that does clip: marked, but overflow written visible, it scrolls nothing.
+            const box = node.closest('[data-scroller="sideways"]');
+            if (box !== null && box !== element && element.contains(box) && ['auto', 'scroll'].includes(getComputedStyle(box).overflowX)) {
+                if (node !== box) return false;
+                return r.left < edge.left - 1 || r.right > edge.right + 1;
+            }
             // Cut off from below too: a box that hides what is taller than it, and is not a scroller.
             const y = getComputedStyle(node).overflowY;
             const cut = (y === 'hidden' || y === 'clip') && node.scrollHeight > node.clientHeight + 1;
@@ -334,7 +342,9 @@ test('every element, live, can be reached whole', async ({ page }) => {
             await open();
             const element = page.locator(`[data-element-id="${id}"]`);
             // As long as the wire is waited on: a simulated iPhone opens an element slower than the default allows.
-            await expect.poll(() => element.evaluate((el) => (el as HTMLElement).dataset.form), { message: `${id} is still a dot`, timeout: QUIET_FOR_MS }).not.toBe('dot');
+            // A standing element rests in the sidebar as a button, a temporal one in the tray as a dot (QNTX-Web #5):
+            // neither is what opening it makes.
+            await expect.poll(() => element.evaluate((el) => { const form = (el as HTMLElement).dataset.form; return form === 'dot' || form === 'button'; }), { message: `${id} is still resting`, timeout: QUIET_FOR_MS }).toBe(false);
             await expect.poll(() => element.evaluate((el) => el.classList.contains('morphing')), { message: `${id} is still opening`, timeout: QUIET_FOR_MS }).toBe(false);
             // An element that asks the node all the time is never quiet: it is measured once the wait is over.
             await quiet(page, wire);
