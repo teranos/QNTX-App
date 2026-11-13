@@ -233,13 +233,31 @@ in
             APPLE_API_KEY = "\${{ secrets.APPLE_API_KEY }}";
             APPLE_API_ISSUER = "\${{ secrets.APPLE_API_ISSUER }}";
             APPLE_API_KEY_CONTENT = "\${{ secrets.APPLE_API_KEY_CONTENT }}";
+            # The app's own id at Apple, which altool calls its Apple ID.
+            APPLE_APP_ID = "\${{ vars.APPLE_APP_ID }}";
+            IPA = "\${{ steps.ipa.outputs.path }}";
           };
+          # The app is named to Apple by its id, and what it is by what the IPA itself says.
+          # --upload-app asked App Store Connect for the id by the bundle id first, and on
+          # 2026-11-13 that question stopped being answered (altool error 19), three runs in
+          # a row, on the commit, Xcode and runner image that uploaded the night before.
           run = ''
+            test -n "$APPLE_APP_ID"
             mkdir -p ~/.appstoreconnect/private_keys
             echo "$APPLE_API_KEY_CONTENT" | base64 --decode \
               > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8
-            xcrun altool --upload-app \
-              -f "''${{ steps.ipa.outputs.path }}" \
+            plist=$(mktemp)
+            unzip -p "$IPA" 'Payload/*.app/Info.plist' > "$plist"
+            bundle=$(plutil -extract CFBundleIdentifier raw "$plist")
+            build=$(plutil -extract CFBundleVersion raw "$plist")
+            short=$(plutil -extract CFBundleShortVersionString raw "$plist")
+            echo "uploading $bundle $short ($build)"
+            xcrun altool --upload-package "$IPA" \
+              --type ios \
+              --apple-id "$APPLE_APP_ID" \
+              --bundle-id "$bundle" \
+              --bundle-version "$build" \
+              --bundle-short-version-string "$short" \
               --api-key "$APPLE_API_KEY" \
               --api-issuer "$APPLE_API_ISSUER"
           '';
