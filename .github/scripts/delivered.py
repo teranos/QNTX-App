@@ -76,6 +76,26 @@ def builds(**filters):
     return out
 
 
+def uploads(app, **filters):
+    """What Apple made of each upload: one that it refuses is never a build,
+    and the upload is where it says why."""
+    out = []
+    for u in get(f"/apps/{app}/buildUploads", **{"sort": "-uploadedDate", "limit": 12, **filters})["data"]:
+        a = u["attributes"]
+        state = a.get("state") or {}
+        out.append(f"  {a.get('cfBundleShortVersionString')} ({a.get('cfBundleVersion')})  uploaded {a.get('uploadedDate')}"
+                   f"  state={state.get('state')}  errors={state.get('errors')}  warnings={state.get('warnings')}"
+                   f"  infos={state.get('infos')}")
+    return out
+
+
+def the_app():
+    apps = get("/apps", **{"filter[bundleId]": BUNDLE_ID})["data"]
+    if not apps:
+        sys.exit(f"App Store Connect lists no app with bundle id {BUNDLE_ID}")
+    return apps[0]
+
+
 def line(b):
     return (f"  {b['version']} ({b['build']})  uploaded {b['uploaded']}  processing={b['processing']}"
             f"  expired={b['expired']}  nonExemptEncryption={b['answered']}"
@@ -90,11 +110,13 @@ def answer(b):
 
 
 def list_all():
-    apps = get("/apps", **{"filter[bundleId]": BUNDLE_ID})["data"]
-    if not apps:
-        sys.exit(f"App Store Connect lists no app with bundle id {BUNDLE_ID}")
-    app = apps[0]["id"]
-    print("app", app, apps[0]["attributes"]["name"])
+    found = the_app()
+    app = found["id"]
+    print("app", app, found["attributes"]["name"])
+
+    print("\nuploads, newest first:")
+    for said in uploads(app):
+        print(said)
 
     print("\nbeta groups:")
     for g in get(f"/apps/{app}/betaGroups")["data"]:
@@ -129,6 +151,9 @@ def wait(build):
         else:
             print(f"{build}: not yet listed")
         if time.time() > deadline:
+            print("what Apple made of the upload:")
+            for said in uploads(the_app()["id"], **{"filter[cfBundleVersion]": build}) or ["  no upload of it is listed"]:
+                print(said)
             sys.exit(f"{build} was not delivered to testers within {PATIENCE // 60} minutes")
         time.sleep(30)
 
