@@ -29,9 +29,11 @@ final class WaitsTokens: NSObject {
     guard #available(iOS 17.2, *) else { return }
     guard !begun else { return }
     begun = true
+    waitsIsSeen("begun activities=\(ActivityAuthorizationInfo().areActivitiesEnabled) starts=\(Activity<WaitsAttributes>.pushToStartToken != nil)")
 
     Task {
       for await token in Activity<WaitsAttributes>.pushToStartTokenUpdates {
+        waitsIsSeen("apple-gave-a-token-to-start-by")
         await hand(token, of: "")
       }
     }
@@ -85,6 +87,11 @@ final class WaitsTokens: NSObject {
       turn.sync { newest[""] = hex(starts) }
     }
     let owed = turn.sync { newest.filter { taken[$0.key] != $0.value } }
+    if owed.isEmpty, turn.sync(execute: { newest.isEmpty }) {
+      var enabled = false
+      if #available(iOS 17.2, *) { enabled = ActivityAuthorizationInfo().areActivitiesEnabled }
+      waitsIsSeen("in-front no-token-from-apple-yet activities=\(enabled)")
+    }
     var left = false
     for (waits, token) in owed {
       if await say(token, of: waits) {
@@ -119,6 +126,7 @@ final class WaitsTokens: NSObject {
       return true
     } catch {
       NSLog("[Waits] the node was not handed a token: %@", error.localizedDescription)
+      waitsIsSeen("not-handed \(waits.isEmpty ? "start" : "activity") token: \(error.localizedDescription)")
       return false
     }
   }

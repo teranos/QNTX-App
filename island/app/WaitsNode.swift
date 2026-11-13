@@ -12,7 +12,8 @@ import WebKit
 // that as the person (teranos/QNTX server/auth/presented.go). What is asked
 // here presents the same session: it is read from the page while the page is
 // there, and kept in the Keychain for when the system runs the app with no
-// page, as it does for a press on the island. No token is made for it.
+// page, as it does for a press on the island. Where the page is let keep the
+// node's cookies, those are presented too. No token is made for it.
 
 struct WaitsNodeRefused: LocalizedError {
   let says: String
@@ -81,22 +82,58 @@ private func thePage() -> WKWebView? {
   return nil
 }
 
-// The session the app is in. Asked of the page while it is there, and what
-// the page says is what stands: logged out, nothing is kept. With no page,
-// what was kept when there last was one.
+// The session the app is in, and where it was found. Asked of the page while
+// it is there, and what the page says is what stands: logged out, nothing is
+// kept. With no page, what was kept when there last was one.
 @MainActor
-private func theSession(at node: URL) async -> String? {
-  guard let page = thePage(), page.url != nil, !page.isLoading else {
-    return kept(for: node)
+private func theSession(at node: URL) async -> (session: String?, from: String) {
+  guard let page = thePage() else {
+    let held = kept(for: node)
+    return (held, held == nil ? "no-page-none-kept" : "kept")
+  }
+  guard page.url != nil, !page.isLoading else {
+    let held = kept(for: node)
+    return (held, held == nil ? "page-loading-none-kept" : "kept")
   }
   do {
     let said = try await page.evaluateJavaScript("localStorage.getItem('\(heldAs)') || ''")
     let session = said as? String ?? ""
     keep(session, for: node)
-    return session.isEmpty ? nil : session
+    return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
   } catch {
-    return kept(for: node)
+    let held = kept(for: node)
+    return (held, held == nil ? "page-not-asked-none-kept" : "kept")
   }
+}
+
+// The node's own cookies in the page's store: where the page is let keep
+// them, the session rides there, as it does on the node's own web.
+@MainActor
+private func theCookies(at node: URL) async -> [HTTPCookie] {
+  let all = await withCheckedContinuation { (found: CheckedContinuation<[HTTPCookie], Never>) in
+    WKWebsiteDataStore.default().httpCookieStore.getAllCookies { found.resume(returning: $0) }
+  }
+  guard let host = node.host else { return [] }
+  return all.filter { cookie in
+    let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
+    return host == domain || host.hasSuffix("." + domain)
+  }
+}
+
+// What this side is doing, said to the node so that it stands in the node's
+// log: nothing on a phone is seen from anywhere else. It asks a path the node
+// writes down whoever asks, and says itself in the place a client names
+// itself. It carries no session and is answered by nothing that matters.
+func waitsIsSeen(_ what: String) {
+  guard let node = try? theNode(), let at = URL(string: "/api/phones", relativeTo: node) else { return }
+  let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+  let plain = String(what.unicodeScalars.filter { $0.isASCII && $0.value >= 32 }.prefix(160))
+  var says = URLRequest(url: at)
+  says.httpMethod = "GET"
+  says.timeoutInterval = 10
+  says.httpShouldHandleCookies = false
+  says.setValue("QNTX-waits/\(build) \(plain)", forHTTPHeaderField: "User-Agent")
+  URLSession.shared.dataTask(with: says).resume()
 }
 
 // Asks the node at path, a path of its API, with what is sent there. Throws
@@ -110,7 +147,10 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
   guard let at = URL(string: path, relativeTo: node), at.host == node.host else {
     throw WaitsNodeRefused(says: "\(path) is no path of the node's")
   }
-  guard let session = await theSession(at: node) else {
+  let (session, from) = await theSession(at: node)
+  let cookies = await theCookies(at: node)
+  guard session != nil || !cookies.isEmpty else {
+    waitsIsSeen("not-logged-in session=\(from) cookies=0 asked=\(path)")
     throw WaitsNodeRefused(says: "the app is not logged in")
   }
   var asks = URLRequest(url: at)
@@ -118,7 +158,14 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
   asks.timeoutInterval = 20
   asks.httpShouldHandleCookies = false
   asks.setValue("application/json", forHTTPHeaderField: "Content-Type")
-  asks.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
+  let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+  asks.setValue("QNTX-waits/\(build) session=\(from) cookies=\(cookies.count)", forHTTPHeaderField: "User-Agent")
+  if let session = session {
+    asks.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
+  }
+  for (name, value) in HTTPCookie.requestHeaderFields(with: cookies) {
+    asks.setValue(value, forHTTPHeaderField: name)
+  }
   asks.httpBody = try JSONSerialization.data(withJSONObject: sent)
   let (said, answer) = try await URLSession.shared.data(for: asks)
   guard let status = (answer as? HTTPURLResponse)?.statusCode else {
