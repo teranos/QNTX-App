@@ -94,6 +94,7 @@
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
             "IOS_SHARE_MOBILE_PROVISION": "${{ secrets.IOS_SHARE_MOBILE_PROVISION }}",
+            "ISLAND_PROVISIONING_PROFILE": "QNTX island",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}",
             "SHARE_PROVISIONING_PROFILE": "${{ vars.SHARE_PROVISIONING_PROFILE }}"
           },

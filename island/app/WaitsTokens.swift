@@ -11,13 +11,19 @@ import UIKit
 //
 // The node takes them in the person's own session (teranos/QNTX
 // server/phones.go, HandlePhone). Before the app is logged in it takes none,
-// so each is kept and handed over again whenever the app comes to the front.
+// so the newest of each is kept, and what the node has not taken is handed
+// over again when the app comes to the front and every half minute until it has.
 @objc(WaitsTokens)
 final class WaitsTokens: NSObject {
-  // What is handed over: the token in hex, and what the activity is of, empty for the phone's own.
-  private static var held: [String: String] = [:]
+  // The newest token of each, in hex, by what it is of: empty for the phone's
+  // own, and what a started activity is of for that activity's. A token Apple
+  // renews takes the place of the one before it.
+  private static var newest: [String: String] = [:]
+  // What the node has taken, as newest holds it.
+  private static var taken: [String: String] = [:]
   private static let turn = DispatchQueue(label: "waits.tokens")
   private static var begun = false
+  private static var again: Task<Void, Never>?
 
   @objc static func begin() {
     guard #available(iOS 17.2, *) else { return }
@@ -46,43 +52,74 @@ final class WaitsTokens: NSObject {
 
   @available(iOS 17.2, *)
   private static func follow(_ activity: Activity<WaitsAttributes>) {
+    let waits = activity.attributes.waits
     Task {
+      // The token it has already, which the sequence below may never say again.
+      if let token = activity.pushToken {
+        await hand(token, of: waits)
+      }
       for await token in activity.pushTokenUpdates {
-        await hand(token, of: activity.attributes.waits)
+        await hand(token, of: waits)
+      }
+      // Over: nothing of it is handed over again.
+      turn.sync {
+        newest[waits] = nil
+        taken[waits] = nil
       }
     }
   }
 
-  private static func hand(_ token: Data, of waits: String) async {
-    let hex = token.map { String(format: "%02x", $0) }.joined()
-    turn.sync { held[hex] = waits }
-    await say(hex, of: waits)
+  private static func hex(_ token: Data) -> String {
+    token.map { String(format: "%02x", $0) }.joined()
   }
 
+  private static func hand(_ token: Data, of waits: String) async {
+    turn.sync { newest[waits] = hex(token) }
+    await handAll()
+  }
+
+  // Hands the node each newest token it has not taken, and tries again in
+  // half a minute while one is left: the person may log in with the app open.
   private static func handAll() async {
     if #available(iOS 17.2, *), let starts = Activity<WaitsAttributes>.pushToStartToken {
-      await hand(starts, of: "")
+      turn.sync { newest[""] = hex(starts) }
     }
-    let all = turn.sync { held }
-    for (hex, waits) in all {
-      await say(hex, of: waits)
+    let owed = turn.sync { newest.filter { taken[$0.key] != $0.value } }
+    var left = false
+    for (waits, token) in owed {
+      if await say(token, of: waits) {
+        turn.sync { taken[waits] = token }
+      } else {
+        left = true
+      }
+    }
+    guard left else { return }
+    turn.sync {
+      again?.cancel()
+      again = Task {
+        try? await Task.sleep(nanoseconds: 30_000_000_000)
+        guard !Task.isCancelled else { return }
+        await handAll()
+      }
     }
   }
 
-  private static func say(_ hex: String, of waits: String) async {
-    var sent = ["token": hex, "platform": "ios"]
+  private static func say(_ token: String, of waits: String) async -> Bool {
+    var sent = ["token": token, "platform": "ios"]
     if !waits.isEmpty {
       sent["waits"] = waits
       // Which phone it stands on, by the token this phone starts them by:
       // the node starts on another phone what does not stand there.
-      if #available(iOS 17.2, *), let starts = Activity<WaitsAttributes>.pushToStartToken {
-        sent["phone"] = starts.map { String(format: "%02x", $0) }.joined()
+      if let phone = turn.sync(execute: { newest[""] }) {
+        sent["phone"] = phone
       }
     }
     do {
       try await waitsNodeIsAsked("/api/phones", sent)
+      return true
     } catch {
       NSLog("[Waits] the node was not handed a token: %@", error.localizedDescription)
+      return false
     }
   }
 }

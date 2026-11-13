@@ -81,7 +81,17 @@ def uploads(app, **filters):
     and the upload is where it says why."""
     out = []
     # Apple lists what was announced and never sent first, undated: those are left out, and the rest is the newest twelve.
-    sent = [u for u in get(f"/apps/{app}/buildUploads", **{"limit": 200, **filters})["data"] if u["attributes"].get("uploadedDate")]
+    sent, page, pages = [], get(f"/apps/{app}/buildUploads", **{"limit": 200, **filters}), 0
+    while True:
+        sent += [u for u in page["data"] if u["attributes"].get("uploadedDate")]
+        following = page.get("links", {}).get("next")
+        pages += 1
+        if not following or pages == 10:
+            break
+        r = requests.get(following, headers=bearer(), timeout=30)
+        if r.status_code != 200:
+            sys.exit(f"{following} answered {r.status_code}: {r.text}")
+        page = r.json()
     for u in sorted(sent, key=lambda u: u["attributes"]["uploadedDate"], reverse=True)[:12]:
         a = u["attributes"]
         state = a.get("state") or {}

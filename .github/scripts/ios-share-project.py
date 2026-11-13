@@ -97,4 +97,8 @@ if __name__ == '__main__':
                 BUNDLE: os.environ['SHARE_PROVISIONING_PROFILE'],
             },
         }
+        # The archive carries the island too when it is built, and an export names every bundle it signs.
+        island = os.environ.get('ISLAND_PROVISIONING_PROFILE', '')
+        if island:
+            export['provisioningProfiles']['nl.sbvh.qntx.island'] = island
         Path(args.project).with_name('ShareExportOptions.plist').write_bytes(plistlib.dumps(export))

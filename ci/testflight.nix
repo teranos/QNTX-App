@@ -218,6 +218,7 @@ in
             APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
             SHARE_PROVISIONING_PROFILE = "\${{ vars.SHARE_PROVISIONING_PROFILE }}";
             PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
+            ISLAND_PROVISIONING_PROFILE = islandProfile;
             IOS_SHARE_MOBILE_PROVISION = "\${{ secrets.IOS_SHARE_MOBILE_PROVISION }}";
           };
           run = ''

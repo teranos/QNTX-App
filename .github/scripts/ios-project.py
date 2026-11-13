@@ -173,8 +173,8 @@ def main(path):
     island = os.environ.get("ISLAND_PROVISIONING_PROFILE", "")
     if island:
         node = os.environ.get("BACKEND_URL", "")
-        if not node.startswith("https://"):
-            raise SystemExit("BACKEND_URL names no node over https, and a press on the island asks the node: " + repr(node))
+        if not node.startswith(("https://", "http://")):
+            raise SystemExit("BACKEND_URL names no node, and a press on the island asks the node: " + repr(node))
         embed = lines.index(EMBED_AFTER)
         lines[embed + 1:embed + 1] = [
             "      - target: IslandWidget",

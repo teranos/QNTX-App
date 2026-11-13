@@ -80,7 +80,7 @@ private struct Presses: View {
   var body: some View {
     HStack(spacing: 8) {
       ForEach(Array(presses.enumerated()), id: \.offset) { at, press in
-        Button(intent: PressWaits(activity: activity, press: at)) {
+        Button(intent: PressWaits(activity: activity, press: at, asks: press.asks)) {
           // "I FIND THAT CANCER EVERYWEHERE WHERE YOU DO THIS"
           // A press is the system's own mark and no word: the word is what is read out for it.
           Image(systemName: markOf(press.does))

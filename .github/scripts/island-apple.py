@@ -87,9 +87,18 @@ def the_profile(app_id, certificates):
     found = get("/profiles", **{"filter[name]": ISLAND_PROFILE, "limit": 200})
     for held in found["data"]:
         a = held["attributes"]
-        if a["name"] == ISLAND_PROFILE and a["profileState"] == "ACTIVE" and a["profileType"] == "IOS_APP_STORE":
+        if a["name"] != ISLAND_PROFILE or a["profileState"] != "ACTIVE" or a["profileType"] != "IOS_APP_STORE":
+            continue
+        # One made for another App ID or against another certificate signs nothing here: it is taken away, and made anew.
+        of = get(f"/profiles/{held['id']}/bundleId")["data"]["id"]
+        against = sorted(c["id"] for c in get(f"/profiles/{held['id']}/certificates", limit=200)["data"])
+        if of == app_id and against == sorted(certificates):
             print("profile:", repr(ISLAND_PROFILE), "is held,", held["id"], "expires", a["expirationDate"])
             return a["profileContent"]
+        print("profile:", repr(ISLAND_PROFILE), held["id"], "is of", of, "against", against, "and is taken away")
+        r = requests.delete(f"{ASC}/profiles/{held['id']}", headers=bearer(), timeout=30)
+        if r.status_code != 204:
+            sys.exit(f"DELETE /profiles/{held['id']} answered {r.status_code}: {r.text}")
     made = post("/profiles", {"data": {
         "type": "profiles",
         "attributes": {"name": ISLAND_PROFILE, "profileType": "IOS_APP_STORE"},
