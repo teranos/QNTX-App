@@ -73,6 +73,11 @@ final class WaitsTokens: NSObject {
     var sent = ["token": hex, "platform": "ios"]
     if !waits.isEmpty {
       sent["waits"] = waits
+      // Which phone it stands on, by the token this phone starts them by:
+      // the node starts on another phone what does not stand there.
+      if #available(iOS 17.2, *), let starts = Activity<WaitsAttributes>.pushToStartToken {
+        sent["phone"] = starts.map { String(format: "%02x", $0) }.joined()
+      }
     }
     do {
       try await waitsNodeIsAsked("/api/phones", sent)
