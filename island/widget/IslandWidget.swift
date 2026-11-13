@@ -83,7 +83,7 @@ private struct Presses: View {
         Button(intent: PressWaits(activity: activity, press: at)) {
           // "I FIND THAT CANCER EVERYWEHERE WHERE YOU DO THIS"
           // A press is the system's own mark and no word: the word is what is read out for it.
-          Image(systemName: press.symbol)
+          Image(systemName: markOf(press.does))
             .font(.system(size: 18, weight: .semibold))
             .foregroundColor(press.armed ? armedRed : .white)
             .frame(maxWidth: .infinity)
