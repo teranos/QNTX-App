@@ -32,7 +32,7 @@ pub struct Share<R: Runtime> {
     #[cfg(target_os = "ios")]
     handle: tauri::plugin::PluginHandle<R>,
     #[cfg(not(target_os = "ios"))]
-    _marker: std::_marker::PhantomData<fn() -> R>,
+    _marker: std::marker::PhantomData<fn() -> R>,
 }
 
 impl<R: Runtime> Share<R> {
@@ -80,7 +80,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(target_os = "ios")]
             let share = Share { handle: _api.register_ios_plugin(init_share)? };
             #[cfg(not(target_os = "ios"))]
-            let share = Share::<R> { _marker: std::_marker::PhantomData };
+            let share = Share::<R> { _marker: std::marker::PhantomData };
             app.manage(share);
             Ok(())
         }).build()
