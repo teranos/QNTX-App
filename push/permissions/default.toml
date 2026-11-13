@@ -1,5 +1,0 @@
-"$schema" = "schemas/schema.json"
-
-[default]
-description = "The page may ask the phone for the token the node reaches it by"
-permissions = ["allow-token"]
