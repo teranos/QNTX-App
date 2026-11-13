@@ -32,6 +32,21 @@ if len(metadata) != 1:
     raise SystemExit('the app carries no Metadata.appintents: the system would find no press to run in it')
 
 
+# What the island needs of the app itself, read from what was built: where the
+# node is, for a press to ask it, and that the app may have Live Activities.
+import plistlib
+
+for app in (archive / 'Products/Applications').glob('*.app'):
+    info = plistlib.loads((app / 'Info.plist').read_bytes())
+    print('the app says:', {key: info.get(key) for key in ('QNTXNode', 'NSSupportsLiveActivities', 'CFBundleVersion')})
+    if not str(info.get('QNTXNode', '')).startswith(('https://', 'http://')):
+        raise SystemExit('the app names no node in QNTXNode: a press on the island would ask nobody')
+    if info.get('NSSupportsLiveActivities') is not True:
+        raise SystemExit('the app does not say NSSupportsLiveActivities: the system starts no Live Activity for it')
+    widget = plistlib.loads((app / 'PlugIns/IslandWidget.appex/Info.plist').read_bytes())
+    print('the island says:', {key: widget.get(key) for key in ('CFBundleIdentifier', 'MinimumOSVersion', 'NSExtension')})
+
+
 def security(*args, **kwargs):
     return subprocess.run(['security', *args], check=True, **kwargs)
 
