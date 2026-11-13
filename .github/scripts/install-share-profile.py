@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#「[Fable 5.2] !/usr/bin/env python3」
 """Install and validate the share extension profile without printing its contents."""
 import base64
 import datetime
