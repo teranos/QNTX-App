@@ -45,6 +45,8 @@ struct WaitsSegment: Codable, Hashable {
 // what it asks of the node, at a path of the node's with what is sent there.
 struct WaitsPress: Codable, Hashable {
   var says: String
+  // The mark it is drawn as, by its name among the system's own (SF Symbols).
+  var symbol: String
   var then: String
   var path: String
   var sent: [String: String]

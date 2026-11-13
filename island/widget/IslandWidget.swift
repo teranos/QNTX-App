@@ -81,15 +81,18 @@ private struct Presses: View {
     HStack(spacing: 8) {
       ForEach(Array(presses.enumerated()), id: \.offset) { at, press in
         Button(intent: PressWaits(activity: activity, press: at)) {
-          Text(press.says)
-            .font(.system(size: 13, weight: .semibold))
+          // "I FIND THAT CANCER EVERYWEHERE WHERE YOU DO THIS"
+          // A press is the system's own mark and no word: the word is what is read out for it.
+          Image(systemName: press.symbol)
+            .font(.system(size: 18, weight: .semibold))
             .foregroundColor(press.armed ? armedRed : .white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 9)
             .background(raised)
             .clipShape(RoundedRectangle(cornerRadius: 9))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(press.says)
       }
     }
   }
