@@ -190,8 +190,8 @@ in
           env = {
             APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
             PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
-            # Unset, the island's widget is not in the project and the build is
-            # as it was: the export below names the app's profile alone.
+            # 「[Opus 5.5, Fable 5.2] Unset, the island's widget is not in the project and the build is」
+            # 「[Opus 5.5, Fable 5.2] as it was: the export below names the app's profile alone.」
             ISLAND_PROVISIONING_PROFILE = "\${{ vars.ISLAND_PROVISIONING_PROFILE }}";
           };
           run = ''

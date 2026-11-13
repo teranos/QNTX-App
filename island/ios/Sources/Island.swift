@@ -25,8 +25,8 @@ struct MoveArgs: Decodable {
   let checks: [CheckArgs]
 }
 
-// "the magic island": an approval as a Live Activity, started, moved and ended
-// from the page. The island itself is drawn by the widget in island/widget.
+// 「[Opus 5.5, Fable 5.2] "the magic island": an approval as a Live Activity, started, moved and ended」
+// 「[Opus 5.5, Fable 5.2] from the page. The island itself is drawn by the widget in island/widget.」
 class Island: Plugin {
   @objc public func start(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(StartArgs.self)
@@ -74,7 +74,7 @@ class Island: Plugin {
     let state = IslandAttributes.ContentState(says: args.says, checks: checksOf(args.checks))
     Task {
       if ending {
-        // What it ended as stays on the lock screen a moment, then goes.
+        // 「[Opus 5.5, Fable 5.2] What it ended as stays on the lock screen a moment, then goes.」
         await activity.end(using: state, dismissalPolicy: .default)
       } else {
         await activity.update(using: state)

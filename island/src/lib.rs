@@ -1,9 +1,9 @@
-//! "the magic island": an approval (ADR-052 in teranos/QNTX) as a Live
-//! Activity on the Dynamic Island and the lock screen, started, moved and
-//! ended by the page. The widget in island/widget draws it.
+//! 「[Opus 5.5, Fable 5.2] "the magic island": an approval (ADR-052 in teranos/QNTX) as a Live」
+//! 「[Opus 5.5, Fable 5.2] Activity on the Dynamic Island and the lock screen, started, moved and」
+//! 「[Opus 5.5, Fable 5.2] ended by the page. The widget in island/widget draws it.」
 //!
-//! `start` resolves with the island's id; `update` and `end` take it. Off iOS
-//! there is no island, and each says so.
+//! 「[Opus 5.5, Fable 5.2] `start` resolves with the island's id; `update` and `end` take it. Off iOS」
+//! 「[Opus 5.5, Fable 5.2] there is no island, and each says so.」
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -29,26 +29,26 @@ impl Serialize for Error {
     }
 }
 
-/// One check on the pull request's head, and the segment it is drawn as:
-/// waiting, running, done or failed.
+/// 「[Opus 5.5, Fable 5.2] One check on the pull request's head, and the segment it is drawn as:」
+/// 「[Opus 5.5, Fable 5.2] waiting, running, done or failed.」
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Check {
     pub name: String,
     pub state: String,
 }
 
-/// What an approval starts the island with.
+/// 「[Opus 5.5, Fable 5.2] What an approval starts the island with.」
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Start {
-    /// owner/repo#n.
+    /// 「[Opus 5.5, Fable 5.2] owner/repo#n.」
     pub pull_request: String,
     pub title: String,
     pub says: String,
     pub checks: Vec<Check>,
 }
 
-/// What moves or ends the island: which one, and what stands now.
+/// 「[Opus 5.5, Fable 5.2] What moves or ends the island: which one, and what stands now.」
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Move {
     pub id: String,
@@ -56,7 +56,7 @@ pub struct Move {
     pub checks: Vec<Check>,
 }
 
-/// The island started: the id `update` and `end` name it by.
+/// 「[Opus 5.5, Fable 5.2] The island started: the id `update` and `end` name it by.」
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Started {
     pub id: String,
