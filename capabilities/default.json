@@ -32,6 +32,7 @@
     "opener:allow-open-url",
     "opener:allow-default-urls",
     "sheet:default",
-    "shake:default"
+    "shake:default",
+    "island:default"
   ]
 }
