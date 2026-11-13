@@ -34,13 +34,15 @@ EMBED_AFTER = "      - sdk: WebKit.framework"
 # is its own bundle, signed by its own profile, so it is in the project only
 # when that profile is named. Paths are relative to gen/apple.
 ISLAND_ID = "nl.sbvh.qntx.island"
+# The app is what the island is of: its identifier without what names the island.
+APP_ID = ISLAND_ID[:-len(".island")]
 ISLAND_TARGET = """  IslandWidget:
     type: app-extension
     platform: iOS
-    deploymentTarget: "16.1"
+    deploymentTarget: "17.2"
     sources:
       - path: ../../island/widget
-      - path: ../../island/ios/Sources/IslandAttributes.swift
+      - path: ../../island/shared
     info:
       path: IslandWidget/Info.plist
       properties:
@@ -52,11 +54,26 @@ ISLAND_TARGET = """  IslandWidget:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {id}
+        SWIFT_VERSION: "5.0"
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: {team}
         PROVISIONING_PROFILE_SPECIFIER: {profile}
         CODE_SIGN_IDENTITY: "Apple Distribution"
 """
+
+# The app target's last source in the template: what the app itself compiles of
+# the island goes before it. A press on the island is run by the system in the
+# app's process, and the system finds it only among what Xcode compiled into
+# the app: a Tauri plugin's Swift is built outside Xcode and is not among it.
+SOURCES_BEFORE = "      - path: LaunchScreen.storyboard"
+ISLAND_IN_THE_APP = [
+    "      - path: ../../island/app",
+    "      - path: ../../island/shared",
+]
+
+# The first of the app's Info.plist properties in the template: where the node
+# is goes after it, for what the app asks of the node outside the page.
+INFO_AFTER = "        LSRequiresIPhoneOS: true"
 
 
 # Where the template names the app's entitlements file, which cargo-mobile2
@@ -107,6 +124,40 @@ def reached_by_the_node(path, lines):
     print("entitlements:", at, sorted(entitled))
 
 
+def island_is_signed(island):
+    """The island's own profile, installed where Xcode looks, and the export
+    that names it beside the app's: the Tauri CLI exports with the app's
+    profile alone, and an archive that carries the island is refused by it."""
+    held = os.environ.get("IOS_ISLAND_MOBILE_PROVISION", "")
+    if not held:
+        raise SystemExit("IOS_ISLAND_MOBILE_PROVISION is empty: the island has no provisioning profile to be signed with")
+    raw = base64.b64decode(held)
+    with tempfile.NamedTemporaryFile(suffix=".mobileprovision") as profile:
+        profile.write(raw)
+        profile.flush()
+        read = subprocess.run(["security", "cms", "-D", "-i", profile.name], capture_output=True, check=True)
+    signed_with = plistlib.loads(read.stdout)
+    if signed_with.get("Name") != island:
+        raise SystemExit(
+            "IOS_ISLAND_MOBILE_PROVISION holds the profile " + repr(signed_with.get("Name")) + " and "
+            "ISLAND_PROVISIONING_PROFILE names " + repr(island))
+    of = signed_with.get("Entitlements", {}).get("application-identifier", "")
+    if not of.endswith("." + ISLAND_ID):
+        raise SystemExit("the profile " + island + " is of " + repr(of) + ", and the island is " + ISLAND_ID)
+    where = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
+    os.makedirs(where, exist_ok=True)
+    with open(os.path.join(where, signed_with["UUID"] + ".mobileprovision"), "wb") as installed:
+        installed.write(raw)
+    export = {
+        "method": "app-store-connect", "signingStyle": "manual", "teamID": TEAM,
+        "signingCertificate": "Apple Distribution",
+        "provisioningProfiles": {APP_ID: PROFILE, ISLAND_ID: island},
+    }
+    with open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "IslandExportOptions.plist"), "wb") as options:
+        plistlib.dump(export, options)
+    print("the island's profile:", island, "installed, and the export names it beside", PROFILE)
+
+
 def main(path):
     lines = open(path).read().split("\n")
 
@@ -122,13 +173,24 @@ def main(path):
 
     island = os.environ.get("ISLAND_PROVISIONING_PROFILE", "")
     if island:
+        node = os.environ.get("BACKEND_URL", "")
+        if not node.startswith("https://"):
+            raise SystemExit("BACKEND_URL names no node over https, and a press on the island asks the node: " + repr(node))
         embed = lines.index(EMBED_AFTER)
         lines[embed + 1:embed + 1] = [
             "      - target: IslandWidget",
             "        embed: true",
         ]
+        before = lines.index(SOURCES_BEFORE)
+        lines[before:before] = ISLAND_IN_THE_APP
+        info = lines.index(INFO_AFTER)
+        lines[info + 1:info + 1] = ["        QNTXNode: " + node]
+        # The app compiles Swift of its own now, which the template never had.
+        at = lines.index(ANCHOR)
+        lines[at + 1:at + 1] = ['      SWIFT_VERSION: "5.0"']
         # targets: is the template's last key, so a target appended is one of them.
         lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island))
+        island_is_signed(island)
 
     reached_by_the_node(path, lines)
 
