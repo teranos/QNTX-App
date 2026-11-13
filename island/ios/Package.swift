@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// 「[Opus 5.5, Fable 5.2] swift-tools-version:5.3」
 
 import PackageDescription
 
