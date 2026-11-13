@@ -45,8 +45,8 @@ power = { path = "power" }
 # The shake a phone feels, and the snapshot of the web view it carries. Off a
 # phone the snapshot says it cannot, and nothing shakes.
 shake = { path = "shake" }
-# An approval on the Dynamic Island, as a Live Activity. Off iOS it says it
-# cannot.
+# 「[Opus 5.5, Fable 5.2] An approval on the Dynamic Island, as a Live Activity. Off iOS it says it」
+# 「[Opus 5.5, Fable 5.2] cannot.」
 island = { path = "island" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
