@@ -65,27 +65,33 @@ ENTITLEMENTS = "    entitlements:"
 ENTITLEMENTS_PATH = "      path: "
 
 
-def profile_carries_push():
-    """Whether the provisioning profile the build signs with carries Push
-    Notifications, or None where the profile is not at hand to be asked. A
-    profile made before Push was turned on for the App ID does not, and
-    codesign then refuses the app for an entitlement its profile lacks, in
-    words that name neither."""
+def profile_signed_with():
+    """The provisioning profile the build signs with, as Apple wrote it. The
+    build installs the one in IOS_MOBILE_PROVISION and the project names one
+    by PROVISIONING_PROFILE: asked here, they are the same profile or the
+    build stops."""
     held = os.environ.get("IOS_MOBILE_PROVISION", "")
     if not held:
-        return None
+        raise SystemExit("IOS_MOBILE_PROVISION is empty: the build has no provisioning profile to sign with")
     with tempfile.NamedTemporaryFile(suffix=".mobileprovision") as profile:
         profile.write(base64.b64decode(held))
         profile.flush()
         read = subprocess.run(["security", "cms", "-D", "-i", profile.name], capture_output=True, check=True)
-    return "aps-environment" in plistlib.loads(read.stdout).get("Entitlements", {})
+    signed_with = plistlib.loads(read.stdout)
+    if signed_with.get("Name") != PROFILE:
+        raise SystemExit(
+            "IOS_MOBILE_PROVISION holds the profile " + repr(signed_with.get("Name")) + " and PROVISIONING_PROFILE "
+            "names " + repr(PROFILE) + ": the project would be signed with a profile the build did not install")
+    return signed_with
 
 
 def reached_by_the_node(path, lines):
     """The app takes notifications the node sends through Apple: without
     aps-environment in its entitlements, Apple gives the phone no push token.
-    The provisioning profile carries it; this is the app saying it too."""
-    if profile_carries_push() is False:
+    The provisioning profile carries it; this is the app saying it too. A
+    profile made before Push was turned on for the App ID does not, and
+    codesign then refuses the app in words that name neither."""
+    if "aps-environment" not in profile_signed_with().get("Entitlements", {}):
         raise SystemExit(
             "the provisioning profile " + PROFILE + " does not carry Push Notifications: turn Push "
             "Notifications on for the App ID, regenerate the profile, and put it in IOS_MOBILE_PROVISION")
