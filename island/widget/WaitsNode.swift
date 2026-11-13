@@ -12,3 +12,5 @@ struct WaitsNodeRefused: LocalizedError {
 func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
   throw WaitsNodeRefused(says: "a press is answered in the app, and this is the widget")
 }
+
+func waitsIsSeen(_ what: String) {}
