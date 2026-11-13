@@ -77,3 +77,25 @@ with tempfile.TemporaryDirectory() as held:
     finally:
         security('list-keychains', '-d', 'user', '-s', *before)
         security('delete-keychain', keychain)
+
+# What the app that was exported is signed as being allowed: read back from
+# the IPA itself, for what was written into the project is not what Apple
+# reads. Without aps-environment Apple gives the app no token of any kind.
+import zipfile
+
+ipas = list((root / 'build/island-export').glob('*.ipa'))
+if len(ipas) != 1:
+    raise SystemExit(f'expected one exported IPA, found {len(ipas)}')
+with tempfile.TemporaryDirectory() as unpacked:
+    with zipfile.ZipFile(ipas[0]) as ipa:
+        ipa.extractall(unpacked)
+    for app in Path(unpacked).glob('Payload/*.app'):
+        for signed in [app, app / 'PlugIns/IslandWidget.appex']:
+            read = subprocess.run(['codesign', '-d', '--entitlements', '-', '--xml', str(signed)],
+                                  capture_output=True, check=True)
+            allowed = plistlib.loads(read.stdout) if read.stdout.strip() else {}
+            print(signed.name, 'is signed with:', {key: allowed[key] for key in sorted(allowed)})
+        of_the_app = plistlib.loads(subprocess.run(
+            ['codesign', '-d', '--entitlements', '-', '--xml', str(app)], capture_output=True, check=True).stdout)
+        if 'aps-environment' not in of_the_app:
+            raise SystemExit('the exported app is signed without aps-environment: Apple gives it no token to be reached by')
