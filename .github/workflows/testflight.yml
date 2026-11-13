@@ -81,6 +81,7 @@
         {
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
+            "IOS_MOBILE_PROVISION": "${{ secrets.IOS_MOBILE_PROVISION }}",
             "ISLAND_PROVISIONING_PROFILE": "${{ vars.ISLAND_PROVISIONING_PROFILE }}",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },

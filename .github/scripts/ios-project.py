@@ -10,9 +10,12 @@ Every anchor is matched exactly. A template that stops containing one fails
 here rather than producing a project that builds unsigned.
 """
 
+import base64
 import os
 import plistlib
+import subprocess
 import sys
+import tempfile
 
 TEAM = os.environ["APPLE_DEVELOPMENT_TEAM"]
 PROFILE = os.environ["PROVISIONING_PROFILE"]
@@ -62,10 +65,30 @@ ENTITLEMENTS = "    entitlements:"
 ENTITLEMENTS_PATH = "      path: "
 
 
+def profile_carries_push():
+    """Whether the provisioning profile the build signs with carries Push
+    Notifications, or None where the profile is not at hand to be asked. A
+    profile made before Push was turned on for the App ID does not, and
+    codesign then refuses the app for an entitlement its profile lacks, in
+    words that name neither."""
+    held = os.environ.get("IOS_MOBILE_PROVISION", "")
+    if not held:
+        return None
+    with tempfile.NamedTemporaryFile(suffix=".mobileprovision") as profile:
+        profile.write(base64.b64decode(held))
+        profile.flush()
+        read = subprocess.run(["security", "cms", "-D", "-i", profile.name], capture_output=True, check=True)
+    return "aps-environment" in plistlib.loads(read.stdout).get("Entitlements", {})
+
+
 def reached_by_the_node(path, lines):
     """The app takes notifications the node sends through Apple: without
     aps-environment in its entitlements, Apple gives the phone no push token.
     The provisioning profile carries it; this is the app saying it too."""
+    if profile_carries_push() is False:
+        raise SystemExit(
+            "the provisioning profile " + PROFILE + " does not carry Push Notifications: turn Push "
+            "Notifications on for the App ID, regenerate the profile, and put it in IOS_MOBILE_PROVISION")
     named = lines[lines.index(ENTITLEMENTS) + 1]
     if not named.startswith(ENTITLEMENTS_PATH):
         raise ValueError("the template names no entitlements path under entitlements: " + named)

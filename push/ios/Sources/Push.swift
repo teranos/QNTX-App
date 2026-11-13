@@ -18,6 +18,13 @@ import WebKit
 private var waiting: [Invoke] = []
 private var hooked = false
 private var hookFailed: String?
+// The app's delegate, held for the app's whole life. UIKit holds the one it was
+// started with only until a delegate is set, and the property itself holds
+// nothing: set again below, the delegate would be freed the moment nothing
+// here held it, and the app would hear nothing more of its own life.
+private var heldDelegate: UIApplicationDelegate?
+// How long Apple is given to hand over a token before whoever asked is told it did not.
+private let tokenWithin: TimeInterval = 20
 
 private func answer(token: String?, why: String?) {
   let asked = waiting
@@ -39,6 +46,7 @@ private func hook() {
     hookFailed = "the app has no delegate for Apple to hand the token to"
     return
   }
+  heldDelegate = delegate
   let kind: AnyClass = type(of: delegate)
 
   let registered: @convention(block) (AnyObject, UIApplication, Data) -> Void = { _, _, data in
@@ -86,6 +94,13 @@ class Push: Plugin {
           }
           waiting.append(invoke)
           UIApplication.shared.registerForRemoteNotifications()
+          // Apple answers through the delegate or not at all: no network, and the simulator, give
+          // neither a token nor a refusal, and whoever asked is not left waiting on that.
+          DispatchQueue.main.asyncAfter(deadline: .now() + tokenWithin) {
+            guard let at = waiting.firstIndex(where: { $0 === invoke }) else { return }
+            waiting.remove(at: at)
+            invoke.reject("Apple gave this phone no push token within \(Int(tokenWithin)) seconds")
+          }
         }
       }
     }

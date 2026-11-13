@@ -193,6 +193,9 @@ in
             # Unset, the island's widget is not in the project and the build is
             # as it was: the export below names the app's profile alone.
             ISLAND_PROVISIONING_PROFILE = "\${{ vars.ISLAND_PROVISIONING_PROFILE }}";
+            # The profile itself, to be asked whether it carries Push Notifications
+            # before the app is signed as taking them.
+            IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";
           };
           run = ''
             python3 .github/scripts/ios-project.py gen/apple/project.yml
