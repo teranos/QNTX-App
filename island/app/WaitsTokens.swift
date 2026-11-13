@@ -48,6 +48,7 @@ final class WaitsTokens: NSObject {
         waitsIsSeen("after-\(wait)s starts=\(has)")
         await handAll()
         if has { return }
+        if wait == 15 { await startOneHere() }
       }
     }
     Task {
@@ -71,9 +72,37 @@ final class WaitsTokens: NSObject {
     }
   }
 
+  // What the one this phone starts by itself is of: nothing on the node, and the node is told nothing of it.
+  private static let ofThisPhone = "phone/reached"
+
+  // Apple gave this phone no token to start by. Developers on Apple's forums
+  // say Apple gives one to an app that has started a Live Activity itself
+  // (threads 761214, 741939); Apple's documentation says it need not. So,
+  // once, with the app in front, one is started here and ended: it says the
+  // phone is reached by the node, which it is once Apple gives the token.
+  @available(iOS 17.2, *)
+  private static func startOneHere() async {
+    let inFront = await MainActor.run { UIApplication.shared.applicationState == .active }
+    guard inFront else {
+      waitsIsSeen("not-in-front none-started-here")
+      return
+    }
+    let of = WaitsAttributes(waits: ofThisPhone, kind: "this phone", title: "")
+    let shows = WaitsAttributes.ContentState(says: "reached by your node", preview: "", due: 0, segments: [], presses: [])
+    do {
+      let one = try Activity.request(attributes: of, content: ActivityContent(state: shows, staleDate: nil), pushType: .token)
+      waitsIsSeen("started-one-here")
+      try? await Task.sleep(nanoseconds: 8_000_000_000)
+      await one.end(ActivityContent(state: shows, staleDate: nil), dismissalPolicy: .immediate)
+    } catch {
+      waitsIsSeen("none-started-here: \(error.localizedDescription)")
+    }
+  }
+
   @available(iOS 17.2, *)
   private static func follow(_ activity: Activity<WaitsAttributes>) {
     let waits = activity.attributes.waits
+    if waits == ofThisPhone { return }
     Task {
       // The token it has already, which the sequence below may never say again.
       if let token = activity.pushToken {
