@@ -23,6 +23,11 @@ git clone https://github.com/teranos/QNTX-Web qntx-web
 On every push here, and on dispatch. Either way it carries QNTX main and
 QNTX-Web main as they are at that moment.
 
+A build reaches a phone from main, or when somebody dispatched it. A push to
+any other branch builds, signs and proves itself, and is not uploaded.
+
+> WHY DID I SEE LIKE 10 TESTFLIGHT BUILDS WHEN I WAS WALKING
+
 ## What version it is
 
 QNTX's newest release tag, with the run number as the build. The workflow
@@ -68,6 +73,20 @@ hands the page what the web view shows:
 `{ "png": "data:image/png;base64,...", "width": n, "height": n }`, pixels.
 Off a phone there is no shake, and `snapshot` says it is unsupported.
 
+## What waits on a person stands on the island
+
+> the magic island
+
+> THE BATCH IS A LIVE ACTIVITY
+
+> AND SO IS THE APPROCAL
+
+That is `island/`. The node starts it, says all it shows and ends it; the app
+draws it, hands the node the tokens Apple gives it, and answers a press. The
+story, what a press is and what it rests on are the node's to say:
+[ADR-060](https://github.com/teranos/QNTX/blob/main/docs/adr/ADR-060-What-Waits-On-A-Person-Is-A-Live-Activity.md).
+What is the app's own is in [island/README.md](island/README.md).
+
 ## What the pipeline proves
 
 A run is green when App Store Connect says a tester can install the build,
@@ -75,10 +94,22 @@ not when the upload returned. Export compliance is answered in
 `Info.ios.plist`; without it a build sits unanswered and reaches nobody.
 `.github/scripts/delivered.py` is the asking.
 
+Before anything is uploaded, the build reads back from the app it made what
+that app is: where the node is, that it may have Live Activities, that it
+carries the island and its press, and what it is signed as being allowed
+(`.github/scripts/export-island-ipa.py`). What was written into the project
+is not what Apple reads, and an app signed without `aps-environment` is not
+uploaded.
+
 ## What signs it
 
 An Apple distribution certificate and an App Store provisioning profile, held
 as secrets here. A build lands in TestFlight and updates itself from there.
+
+The island is its own bundle, signed by its own profile. Apple is asked for
+its App ID and profile with the key CI holds, and each is made where missing
+(`.github/workflows/island-apple.yml`); the profile is the secret
+`IOS_ISLAND_MOBILE_PROVISION`.
 
 TestFlight is the build that counts. The Android build (`ci/android.nix`)
 waits: it runs only when dispatched by hand.
