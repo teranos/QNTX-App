@@ -80,7 +80,9 @@ def uploads(app, **filters):
     """What Apple made of each upload: one that it refuses is never a build,
     and the upload is where it says why."""
     out = []
-    for u in get(f"/apps/{app}/buildUploads", **{"sort": "-uploadedDate", "limit": 12, **filters})["data"]:
+    # Apple lists what was announced and never sent first, undated: those are left out, and the rest is the newest twelve.
+    sent = [u for u in get(f"/apps/{app}/buildUploads", **{"limit": 200, **filters})["data"] if u["attributes"].get("uploadedDate")]
+    for u in sorted(sent, key=lambda u: u["attributes"]["uploadedDate"], reverse=True)[:12]:
         a = u["attributes"]
         state = a.get("state") or {}
         out.append(f"  {a.get('cfBundleShortVersionString')} ({a.get('cfBundleVersion')})  uploaded {a.get('uploadedDate')}"
