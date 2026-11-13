@@ -72,13 +72,22 @@ struct PressWaits: LiveActivityIntent {
     do {
       try await waitsNodeIsAsked(pressed.path, pressed.sent)
       waitsIsSeen("press-done \(pressed.does) of=\(stands.attributes.waits)")
-      // Done: it says what became of it, and leaves in a minute.
-      var done = asking
-      done.says = pressed.then
-      done.due = 0
-      await stands.end(
-        ActivityContent(state: done, staleDate: nil),
-        dismissalPolicy: .after(Date().addingTimeInterval(60)))
+      if pressed.does == "delay" {
+        // "ANY PENDING IS LIVE ACTIVITY"
+        // Delayed, it is still pending: it stays, saying so, with its presses,
+        // and the node moves it to its new time.
+        var delayed = shown
+        delayed.says = pressed.then
+        await stands.update(ActivityContent(state: delayed, staleDate: nil))
+      } else {
+        // Done, and no longer pending: it says what became of it, and leaves in a minute.
+        var done = asking
+        done.says = pressed.then
+        done.due = 0
+        await stands.end(
+          ActivityContent(state: done, staleDate: nil),
+          dismissalPolicy: .after(Date().addingTimeInterval(60)))
+      }
     } catch {
       // Not done: it says so. What the node said meanwhile stands; where it
       // said nothing, the presses are there to press again.
