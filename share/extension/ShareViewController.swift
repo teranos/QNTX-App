@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 import ImageIO
 import InboxCore
 
-/// An offline handoff, never an agent request. The containing app owns identity
-/// and destination selection. No credentials or network client live here.
+/// 「[Fable 5.2] An offline handoff, never an agent request. The containing app owns identity」
+/// 「[Fable 5.2] and destination selection. No credentials or network client live here.」
 final class ShareViewController: SLComposeServiceViewController {
     private var providers: [NSItemProvider] = []
     private let work = DispatchQueue(label: "nl.sbvh.qntx.share-import")
@@ -53,8 +53,8 @@ final class ShareViewController: SLComposeServiceViewController {
         }
     }
 
-    // Providers are loaded sequentially. Copy bytes while the provider's file
-    // URL is valid; it may be deleted as soon as the completion handler returns.
+    // 「[Fable 5.2] Providers are loaded sequentially. Copy bytes while the provider's file」
+    // 「[Fable 5.2] URL is valid; it may be deleted as soon as the completion handler returns.」
     private func load(items: [NSItemProvider], index: Int, draft: Draft) {
         if index == items.count {
             do {
