@@ -150,7 +150,6 @@ def island_is_signed(island):
         installed.write(raw)
     export = {
         "method": "app-store-connect", "signingStyle": "manual", "teamID": TEAM,
-        "signingCertificate": "Apple Distribution",
         "provisioningProfiles": {APP_ID: PROFILE, ISLAND_ID: island},
     }
     with open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), "IslandExportOptions.plist"), "wb") as options:

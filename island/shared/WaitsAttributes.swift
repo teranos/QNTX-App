@@ -45,8 +45,8 @@ struct WaitsSegment: Codable, Hashable {
 // what it asks of the node, at a path of the node's with what is sent there.
 struct WaitsPress: Codable, Hashable {
   var says: String
-  // What the press is, as the node names it: send, delay, cancel, approve,
-  // refuse. The mark it is drawn as is markOf's, one for each.
+  // What the press is, as the node names it, one of three: approve, delay,
+  // cancel. The mark it is drawn as is markOf's, one for each.
   var does: String
   var then: String
   var path: String
@@ -57,18 +57,18 @@ struct WaitsPress: Codable, Hashable {
 
 // "CANCEL SHOULD BE ONE THING"
 // "APPROVE SHOULD BE ONE THING"
+// "THEY ARE ESSENTIALLY THE SAME GODDAMN THING"
 //
 // The mark each press is drawn as, among the system's own (SF Symbols): the
-// one place a press is given its mark, so cancel is the same mark on whatever
-// waits, and approve is. A press the node names and this does not know is
+// one place a press is given its mark. A press is one of three. Approve is
+// the yes, whatever it is the yes to: sending what waits, merging what was
+// asked. Cancel is the no. A press the node names and this does not know is
 // drawn as not known, and is seen to be.
 func markOf(_ does: String) -> String {
   switch does {
-  case "send": return "paperplane.fill"
+  case "approve": return "checkmark"
   case "delay": return "clock.arrow.circlepath"
   case "cancel": return "nosign"
-  case "approve": return "checkmark"
-  case "refuse": return "xmark"
   default: return "questionmark.square.dashed"
   }
 }
