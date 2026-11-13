@@ -85,16 +85,16 @@ waits: it runs only when dispatched by hand.
 
 "the android build isnt critical now"
 
-## Screenshots shared from another iPhone app
+## 「[Fable 5.2] Screenshots shared from another iPhone app」
 
-`share/` receives PNG/JPEG screenshots through an iOS Share Extension. A batch
-keeps the selected order and an optional note in an App Group container until
-QNTX's frontend explicitly acknowledges it. The extension saves locally and
-asks the person to choose their agent in QNTX; it never guesses a recipient or
-uploads under a cached identity.
+「[Fable 5.2] `share/` receives PNG/JPEG screenshots through an iOS Share Extension. A batch」
+「[Fable 5.2] keeps the selected order and an optional note in an App Group container until」
+「[Fable 5.2] QNTX's frontend explicitly acknowledges it. The extension saves locally and」
+「[Fable 5.2] asks the person to choose their agent in QNTX; it never guesses a recipient or」
+「[Fable 5.2] uploads under a cached identity.」
 
-This is the App-side handoff. The frontend inbox/agent chooser and multiple-image
-agent submission are follow-up work. Distribution stays disabled until that
-consumer and the App Group provisioning are ready. See [share/README.md](share/README.md)
-for the bridge, signing setup, and device acceptance checks. Android receiving
-is not implemented by this iOS increment.
+「[Fable 5.2] This is the App-side handoff. The frontend inbox/agent chooser and multiple-image」
+「[Fable 5.2] agent submission are follow-up work. Distribution stays disabled until that」
+「[Fable 5.2] consumer and the App Group provisioning are ready. See [share/README.md](share/README.md)」
+「[Fable 5.2] for the bridge, signing setup, and device acceptance checks. Android receiving」
+「[Fable 5.2] is not implemented by this iOS increment.」
