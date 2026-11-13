@@ -9,7 +9,7 @@ let
   # dispatch offers.
   backendUrl = "https://api.q.sbvh.nl";
   # The island's provisioning profile, by the name Apple holds it under.
-  islandProfile = "QNTX island";
+  islandProfile = (import ./island.nix).profile;
   # What reaches a phone is asked for: main, or a build somebody dispatched.
   # "WHY DID I SEE LIKE 10 TESTFLIGHT BUILDS WHEN I WAS WALKING"
   reachesAPhone = "github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'";

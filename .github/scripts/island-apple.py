@@ -29,7 +29,8 @@ import requests
 ASC = "https://api.appstoreconnect.apple.com/v1"
 # The app's bundle identifier is tauri.conf.json's, read rather than restated.
 ISLAND = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "tauri.conf.json")))["identifier"] + ".island"
-ISLAND_PROFILE = "QNTX island"
+# The profile's name is the workflow's to say, which says it to the build too (ci/island.nix).
+ISLAND_PROFILE = os.environ["ISLAND_PROVISIONING_PROFILE"]
 
 
 def bearer():
@@ -62,10 +63,17 @@ def the_app_id():
         if held["attributes"]["identifier"] == ISLAND:
             print("App ID:", ISLAND, "is registered,", held["id"])
             return held["id"]
-    made = post("/bundleIds", {"data": {"type": "bundleIds", "attributes": {
-        "identifier": ISLAND, "name": "QNTX island", "platform": "IOS"}}})["data"]
-    print("App ID:", ISLAND, "registered now,", made["id"])
-    return made["id"]
+    r = requests.post(ASC + "/bundleIds", headers={**bearer(), "Content-Type": "application/json"}, timeout=30,
+                      json={"data": {"type": "bundleIds", "attributes": {"identifier": ISLAND, "name": "QNTX island", "platform": "IOS"}}})
+    if r.status_code == 201:
+        print("App ID:", ISLAND, "registered now,", r.json()["data"]["id"])
+        return r.json()["data"]["id"]
+    # Another run registered it between the asking and the making: it is there now, and is used.
+    for held in get("/bundleIds", **{"filter[identifier]": ISLAND, "limit": 200})["data"]:
+        if held["attributes"]["identifier"] == ISLAND:
+            print("App ID:", ISLAND, "was registered meanwhile,", held["id"])
+            return held["id"]
+    sys.exit(f"POST /bundleIds answered {r.status_code}: {r.text}")
 
 
 def the_apps_certificates():
@@ -89,16 +97,16 @@ def the_profile(app_id, certificates):
         a = held["attributes"]
         if a["name"] != ISLAND_PROFILE or a["profileState"] != "ACTIVE" or a["profileType"] != "IOS_APP_STORE":
             continue
-        # One made for another App ID or against another certificate signs nothing here: it is taken away, and made anew.
+        # One made for another App ID or against another certificate signs nothing here.
         of = get(f"/profiles/{held['id']}/bundleId")["data"]["id"]
         against = sorted(c["id"] for c in get(f"/profiles/{held['id']}/certificates", limit=200)["data"])
         if of == app_id and against == sorted(certificates):
             print("profile:", repr(ISLAND_PROFILE), "is held,", held["id"], "expires", a["expirationDate"])
             return a["profileContent"]
-        print("profile:", repr(ISLAND_PROFILE), held["id"], "is of", of, "against", against, "and is taken away")
-        r = requests.delete(f"{ASC}/profiles/{held['id']}", headers=bearer(), timeout=30)
-        if r.status_code != 204:
-            sys.exit(f"DELETE /profiles/{held['id']} answered {r.status_code}: {r.text}")
+        # Never taken away from here: it may be the one builds sign with, and a run on any branch would revoke it.
+        sys.exit(
+            f"Apple holds the profile {ISLAND_PROFILE!r} ({held['id']}) of {of} against {against}, and the island is "
+            f"{app_id} against {sorted(certificates)}: it signs nothing here. Revoke it at Apple, and run this again")
     made = post("/profiles", {"data": {
         "type": "profiles",
         "attributes": {"name": ISLAND_PROFILE, "profileType": "IOS_APP_STORE"},

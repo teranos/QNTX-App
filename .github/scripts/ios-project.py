@@ -25,8 +25,6 @@ PROFILE = os.environ["PROVISIONING_PROFILE"]
 FLOOR_FROM = "    iOS: 14.0"
 FLOOR_TO = "    iOS: 15.0"
 
-# The group the target template already pulls in via `groups: [app]`.
-ANCHOR = "      PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.qntx"
 
 # The app target's last dependency in the template: the island is embedded after it.
 EMBED_AFTER = "      - sdk: WebKit.framework"
@@ -34,9 +32,14 @@ EMBED_AFTER = "      - sdk: WebKit.framework"
 # "the magic island": the widget that draws an approval as a Live Activity. It
 # is its own bundle, signed by its own profile, so it is in the project only
 # when that profile is named. Paths are relative to gen/apple.
-ISLAND_ID = "nl.sbvh.qntx.island"
-# The app is what the island is of: its identifier without what names the island.
-APP_ID = ISLAND_ID[:-len(".island")]
+# The app's identifier is tauri.conf.json's, read rather than restated, and
+# the island's is that with .island after it, as island-apple.py asks Apple
+# for it.
+APP_ID = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tauri.conf.json")))["identifier"]
+ISLAND_ID = APP_ID + ".island"
+
+# The group the target template already pulls in via `groups: [app]`.
+ANCHOR = "      PRODUCT_BUNDLE_IDENTIFIER: " + APP_ID
 ISLAND_TARGET = """  IslandWidget:
     type: app-extension
     platform: iOS
@@ -178,8 +181,9 @@ def main(path):
     island = os.environ.get("ISLAND_PROVISIONING_PROFILE", "")
     if island:
         node = os.environ.get("BACKEND_URL", "")
-        if not node.startswith(("https://", "http://")):
-            raise SystemExit("BACKEND_URL names no node, and a press on the island asks the node: " + repr(node))
+        # Over https: the system lets the app ask nothing else of a node, the page or a press.
+        if not node.startswith("https://"):
+            raise SystemExit("BACKEND_URL names no node over https, and a press on the island asks the node: " + repr(node))
         embed = lines.index(EMBED_AFTER)
         lines[embed + 1:embed + 1] = [
             "      - target: IslandWidget",
@@ -191,7 +195,12 @@ def main(path):
         lines[info + 1:info + 1] = ["        QNTXNode: " + node]
         # The app compiles Swift of its own now, which the template never had.
         at = lines.index(ANCHOR)
-        lines[at + 1:at + 1] = ['      SWIFT_VERSION: "5.0"']
+        # Live Activities and presses are newer than the oldest iOS the app
+        # runs on: linked weakly, the app starts where they are not there.
+        lines[at + 1:at + 1] = [
+            '      SWIFT_VERSION: "5.0"',
+            '      OTHER_LDFLAGS: "$(inherited) -weak_framework ActivityKit -weak_framework AppIntents -weak_framework WidgetKit"',
+        ]
         # targets: is the template's last key, so a target appended is one of them.
         lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island))
         island_is_signed(island)

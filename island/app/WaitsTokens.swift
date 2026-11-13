@@ -12,18 +12,32 @@ import UIKit
 // The node takes them in the person's own session (teranos/QNTX
 // server/phones.go, HandlePhone). Before the app is logged in it takes none,
 // so the newest of each is kept, and what the node has not taken is handed
-// over again when the app comes to the front and every half minute until it has.
+// over again: when the app comes to the front, and after a wait that doubles
+// each time it is refused, up to ten minutes.
 @objc(WaitsTokens)
 final class WaitsTokens: NSObject {
-  // The newest token of each, in hex, by what it is of: empty for the phone's
-  // own, and what a started activity is of for that activity's. A token Apple
-  // renews takes the place of the one before it.
-  private static var newest: [String: String] = [:]
-  // What the node has taken, as newest holds it.
-  private static var taken: [String: String] = [:]
+  // What is handed over for one thing: its token in hex, and what it is of.
+  private struct Held: Equatable {
+    var token: String
+    var waits: String
+  }
+
+  // The phone's own is kept under this, beside each activity under its own id.
+  private static let thePhone = ""
+
+  // The newest of each, by the activity's id: two activities of the same
+  // thing, one ending as the next begins, are two. A token Apple renews takes
+  // the place of the one before it.
+  private static var newest: [String: Held] = [:]
+  // What the node has taken, as newest held it then, and what the phone's own
+  // token and the session were when it took it: with another phone token or
+  // another person in the app, it is handed over anew.
+  private static var taken: [String: Held] = [:]
+  private static var takenWith = ""
   private static let turn = DispatchQueue(label: "waits.tokens")
   private static var begun = false
   private static var again: Task<Void, Never>?
+  private static var refused = 0
 
   @objc static func begin() {
     guard #available(iOS 17.2, *) else { return }
@@ -33,28 +47,29 @@ final class WaitsTokens: NSObject {
 
     // Apple gives the token to start by to an app that is registered with its
     // push service, and not always to one that is not: said in Apple's own
-    // answers on its forums (threads 835188, 761214), and in no documentation.
-    // What Apple hands the app's delegate for it is of another kind and is
-    // not used; the registering is what this is for.
+    // answers on its forums (thread 835188), and in no documentation. What
+    // Apple hands the app's delegate for it is of another kind and is not
+    // used; the registering is what this is for.
     DispatchQueue.main.async {
       UIApplication.shared.registerForRemoteNotifications()
     }
-    // The sequence below says a token Apple made later, and not always one it
-    // made before anybody listened: it is read again after a moment, and again.
+    // The sequence below says a token Apple made later, and before iOS 26 not
+    // always one it made before anybody listened (Apple, forum thread
+    // 799526): it is read again after a moment, and again.
     Task {
-      for wait in [3, 15, 60, 300] as [UInt64] {
+      for wait in [3, 15, 60] as [UInt64] {
         try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
         let has = Activity<WaitsAttributes>.pushToStartToken != nil
-        waitsIsSeen("after-\(wait)s starts=\(has)")
+        if !has { waitsIsSeen("after-\(wait)s no-token-from-apple") }
         await handAll()
         if has { return }
-        if wait == 15 { await startOneHere() }
       }
     }
     Task {
       for await token in Activity<WaitsAttributes>.pushToStartTokenUpdates {
         waitsIsSeen("apple-gave-a-token-to-start-by")
-        await hand(token, of: "")
+        turn.sync { newest[thePhone] = Held(token: hex(token), waits: "") }
+        await handAll()
       }
     }
     Task {
@@ -68,54 +83,30 @@ final class WaitsTokens: NSObject {
     NotificationCenter.default.addObserver(
       forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
     ) { _ in
+      // In front again: asked at once, whatever was being waited for.
+      turn.sync { refused = 0 }
       Task { await handAll() }
-    }
-  }
-
-  // What the one this phone starts by itself is of: nothing on the node, and the node is told nothing of it.
-  private static let ofThisPhone = "phone/reached"
-
-  // Apple gave this phone no token to start by. Developers on Apple's forums
-  // say Apple gives one to an app that has started a Live Activity itself
-  // (threads 761214, 741939); Apple's documentation says it need not. So,
-  // once, with the app in front, one is started here and ended: it says the
-  // phone is reached by the node, which it is once Apple gives the token.
-  @available(iOS 17.2, *)
-  private static func startOneHere() async {
-    let inFront = await MainActor.run { UIApplication.shared.applicationState == .active }
-    guard inFront else {
-      waitsIsSeen("not-in-front none-started-here")
-      return
-    }
-    let of = WaitsAttributes(waits: ofThisPhone, kind: "this phone", title: "")
-    let shows = WaitsAttributes.ContentState(says: "reached by your node", preview: "", due: 0, segments: [], presses: [])
-    do {
-      let one = try Activity<WaitsAttributes>.request(
-        attributes: of, content: ActivityContent(state: shows, staleDate: nil), pushType: .token)
-      waitsIsSeen("started-one-here")
-      try? await Task.sleep(nanoseconds: 8_000_000_000)
-      await one.end(ActivityContent(state: shows, staleDate: nil), dismissalPolicy: .immediate)
-    } catch {
-      waitsIsSeen("none-started-here: \(error.localizedDescription)")
     }
   }
 
   @available(iOS 17.2, *)
   private static func follow(_ activity: Activity<WaitsAttributes>) {
+    let id = activity.id
     let waits = activity.attributes.waits
-    if waits == ofThisPhone { return }
     Task {
       // The token it has already, which the sequence below may never say again.
       if let token = activity.pushToken {
-        await hand(token, of: waits)
+        turn.sync { newest[id] = Held(token: hex(token), waits: waits) }
+        await handAll()
       }
       for await token in activity.pushTokenUpdates {
-        await hand(token, of: waits)
+        turn.sync { newest[id] = Held(token: hex(token), waits: waits) }
+        await handAll()
       }
-      // Over: nothing of it is handed over again.
+      // Over: nothing of this one is handed over again. Another of the same thing is another id.
       turn.sync {
-        newest[waits] = nil
-        taken[waits] = nil
+        newest[id] = nil
+        taken[id] = nil
       }
     }
   }
@@ -124,49 +115,58 @@ final class WaitsTokens: NSObject {
     token.map { String(format: "%02x", $0) }.joined()
   }
 
-  private static func hand(_ token: Data, of waits: String) async {
-    turn.sync { newest[waits] = hex(token) }
-    await handAll()
-  }
-
-  // Hands the node each newest token it has not taken, and tries again in
-  // half a minute while one is left: the person may log in with the app open.
+  // Hands the node each newest token it has not taken.
   private static func handAll() async {
     if #available(iOS 17.2, *), let starts = Activity<WaitsAttributes>.pushToStartToken {
-      turn.sync { newest[""] = hex(starts) }
+      turn.sync { newest[thePhone] = Held(token: hex(starts), waits: "") }
     }
-    let owed = turn.sync { newest.filter { taken[$0.key] != $0.value } }
-    if owed.isEmpty, turn.sync(execute: { newest.isEmpty }) {
-      var enabled = false
-      if #available(iOS 17.2, *) { enabled = ActivityAuthorizationInfo().areActivitiesEnabled }
-      waitsIsSeen("in-front no-token-from-apple-yet activities=\(enabled)")
+    // Who is in the app and which phone token stands: with either another, everything is owed anew.
+    let with = await waitsSessionMark() + " " + (turn.sync { newest[thePhone]?.token ?? "" })
+    let owed: [String: Held] = turn.sync {
+      if takenWith != with {
+        taken = [:]
+        takenWith = with
+      }
+      return newest.filter { taken[$0.key] != $0.value }
     }
     var left = false
-    for (waits, token) in owed {
-      if await say(token, of: waits) {
-        turn.sync { taken[waits] = token }
+    for (id, held) in owed {
+      if await say(held) {
+        // Taken as it was handed: one Apple renewed meanwhile is owed still.
+        turn.sync { if newest[id] == held { taken[id] = held } }
       } else {
         left = true
       }
     }
-    guard left else { return }
-    turn.sync {
-      again?.cancel()
-      again = Task {
-        try? await Task.sleep(nanoseconds: 30_000_000_000)
-        guard !Task.isCancelled else { return }
-        await handAll()
-      }
+    let still = turn.sync { newest.contains { taken[$0.key] != $0.value } }
+    guard left || still else {
+      turn.sync { refused = 0 }
+      return
     }
+    // Asked again after a wait that doubles, ten minutes at most: a person
+    // may log in with the app open, and a node that keeps refusing is not
+    // asked twice a minute for as long as the app is in front.
+    let wait: UInt64 = turn.sync {
+      refused += 1
+      again?.cancel()
+      let doubled = UInt64(30) << UInt64(min(refused - 1, 5))
+      return min(UInt64(600), doubled)
+    }
+    let next = Task {
+      try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+      guard !Task.isCancelled else { return }
+      await handAll()
+    }
+    turn.sync { again = next }
   }
 
-  private static func say(_ token: String, of waits: String) async -> Bool {
-    var sent = ["token": token, "platform": "ios"]
-    if !waits.isEmpty {
-      sent["waits"] = waits
+  private static func say(_ held: Held) async -> Bool {
+    var sent = ["token": held.token, "platform": "ios"]
+    if !held.waits.isEmpty {
+      sent["waits"] = held.waits
       // Which phone it stands on, by the token this phone starts them by:
       // the node starts on another phone what does not stand there.
-      if let phone = turn.sync(execute: { newest[""] }) {
+      if let phone = turn.sync(execute: { newest[thePhone]?.token }) {
         sent["phone"] = phone
       }
     }
@@ -175,7 +175,10 @@ final class WaitsTokens: NSObject {
       return true
     } catch {
       NSLog("[Waits] the node was not handed a token: %@", error.localizedDescription)
-      waitsIsSeen("not-handed \(waits.isEmpty ? "start" : "activity") token: \(error.localizedDescription)")
+      // Said once for each time it is refused in a row, not on every try after.
+      if turn.sync(execute: { refused }) == 0 {
+        waitsIsSeen("not-handed \(held.waits.isEmpty ? "start" : "activity") token: \(error.localizedDescription)")
+      }
       return false
     }
   }

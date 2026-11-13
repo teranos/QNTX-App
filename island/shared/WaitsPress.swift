@@ -54,6 +54,13 @@ struct PressWaits: LiveActivityIntent {
       return .result()
     }
     let pressed = shown.presses[press]
+    // One press of one thing at a time: a second tap before the first is
+    // answered asks the node nothing.
+    guard PressesInHand.take(activity) else {
+      waitsIsSeen("press-not-done already-asking of=\(stands.attributes.waits)")
+      return .result()
+    }
+    defer { PressesInHand.give(activity) }
     waitsIsSeen("pressed \(pressed.does) of=\(stands.attributes.waits)")
 
     // Pressed: nothing more is pressed while the node is asked.
@@ -81,6 +88,24 @@ struct PressWaits: LiveActivityIntent {
       await stands.update(ActivityContent(state: failed, staleDate: nil))
     }
     return .result()
+  }
+}
+
+// What is being asked of the node now, by the activity it was pressed on.
+enum PressesInHand {
+  private static var asking: Set<String> = []
+  private static let turn = NSLock()
+
+  static func take(_ activity: String) -> Bool {
+    turn.lock()
+    defer { turn.unlock() }
+    return asking.insert(activity).inserted
+  }
+
+  static func give(_ activity: String) {
+    turn.lock()
+    asking.remove(activity)
+    turn.unlock()
   }
 }
 

@@ -4,6 +4,9 @@
 #   nix eval --json --file ci/island-apple.nix | jq . > .github/workflows/island-apple.yml
 #
 # JSON is YAML, so GitHub reads the emitted file as it is.
+let
+  island = import ./island.nix;
+in
 {
   name = "island-apple";
 
@@ -11,10 +14,8 @@
   # and a provisioning profile for it. This asks Apple for both with the key
   # CI holds, makes what is missing, and keeps the profile as the run's
   # artifact, for whoever sets it as IOS_ISLAND_MOBILE_PROVISION.
-  on = {
-    push.paths = [ ".github/scripts/island-apple.py" ".github/workflows/island-apple.yml" ];
-    workflow_dispatch = null;
-  };
+  # Asked for, never on a push: what it makes at Apple is what builds sign with.
+  on.workflow_dispatch = null;
 
   jobs.ask = {
     runs-on = "ubuntu-latest";
@@ -30,6 +31,7 @@
           APPLE_API_ISSUER = "\${{ secrets.APPLE_API_ISSUER }}";
           APPLE_API_KEY_CONTENT = "\${{ secrets.APPLE_API_KEY_CONTENT }}";
           PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
+          ISLAND_PROVISIONING_PROFILE = island.profile;
         };
         run = "python3 .github/scripts/island-apple.py island.mobileprovision";
       }

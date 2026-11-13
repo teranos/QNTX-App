@@ -14,6 +14,7 @@
             "APPLE_API_ISSUER": "${{ secrets.APPLE_API_ISSUER }}",
             "APPLE_API_KEY": "${{ secrets.APPLE_API_KEY }}",
             "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}",
+            "ISLAND_PROVISIONING_PROFILE": "QNTX island",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },
           "name": "The island's App ID and profile at Apple",
@@ -32,12 +33,6 @@
   },
   "name": "island-apple",
   "on": {
-    "push": {
-      "paths": [
-        ".github/scripts/island-apple.py",
-        ".github/workflows/island-apple.yml"
-      ]
-    },
     "workflow_dispatch": null
   }
 }

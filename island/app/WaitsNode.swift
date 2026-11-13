@@ -27,18 +27,22 @@ private let heldAs = "qntx.session"
 // (.github/scripts/ios-project.py), as the page's own API origin is.
 private func theNode() throws -> URL {
   guard let said = Bundle.main.object(forInfoDictionaryKey: "QNTXNode") as? String, let node = URL(string: said),
-    node.scheme == "https" || node.scheme == "http", node.host != nil
+    node.scheme == "https", node.host != nil
   else {
     throw WaitsNodeRefused(says: "this build names no node")
   }
   return node
 }
 
+// A session is kept for the node it is of, by its whole origin: scheme, host
+// and port. One kept for another node at the same host is not this node's.
 private func keychain(_ node: URL) -> [String: Any] {
-  [
+  var origin = (node.scheme ?? "") + "://" + (node.host ?? "")
+  if let port = node.port { origin += ":" + String(port) }
+  return [
     kSecClass as String: kSecClassGenericPassword,
     kSecAttrService as String: heldAs,
-    kSecAttrAccount as String: node.host ?? "",
+    kSecAttrAccount as String: origin,
   ]
 }
 
@@ -95,15 +99,36 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
     let held = kept(for: node)
     return (held, held == nil ? "page-loading-none-kept" : "kept")
   }
-  do {
-    let said = try await page.evaluateJavaScript("localStorage.getItem('\(heldAs)') || ''")
-    let session = said as? String ?? ""
-    keep(session, for: node)
-    return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
-  } catch {
-    let held = kept(for: node)
-    return (held, held == nil ? "page-not-asked-none-kept" : "kept")
+  // A page the system has suspended may never answer: it is given three
+  // seconds, and then what was kept stands. A press is not left waiting on it.
+  let said: String? = await withCheckedContinuation { (answered: CheckedContinuation<String?, Never>) in
+    var once = false
+    let answer: (String?) -> Void = { said in
+      if once { return }
+      once = true
+      answered.resume(returning: said)
+    }
+    page.evaluateJavaScript("localStorage.getItem('\(heldAs)') || ''") { result, error in
+      answer(error == nil ? (result as? String ?? "") : nil)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { answer(nil) }
   }
+  guard let session = said else {
+    let held = kept(for: node)
+    return (held, held == nil ? "page-gave-no-answer-none-kept" : "kept")
+  }
+  keep(session, for: node)
+  return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
+}
+
+// A mark of who is in the app now, to tell one session from the next by. It is not the session.
+func waitsSessionMark() async -> String {
+  guard let node = try? theNode(), let session = await theSession(at: node).session else { return "" }
+  var mark: UInt64 = 1469598103934665603
+  for byte in session.utf8 {
+    mark = (mark ^ UInt64(byte)) &* 1099511628211
+  }
+  return String(mark, radix: 16)
 }
 
 // The node's own cookies in the page's store: where the page is let keep
@@ -170,6 +195,12 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
   let (said, answer) = try await URLSession.shared.data(for: asks)
   guard let status = (answer as? HTTPURLResponse)?.statusCode else {
     throw WaitsNodeRefused(says: "the node gave no answer")
+  }
+  // A session the node no longer admits is not kept: logged out, the node
+  // ended it (teranos/QNTX server/auth, handleLogout), and it is never
+  // presented from here again.
+  if status == 401 {
+    keep(nil, for: node)
   }
   guard (200..<300).contains(status) else {
     let words = String(data: said.prefix(200), encoding: .utf8) ?? ""
