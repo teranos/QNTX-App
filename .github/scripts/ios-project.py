@@ -11,6 +11,7 @@ here rather than producing a project that builds unsigned.
 """
 
 import base64
+import json
 import os
 import plistlib
 import subprocess
@@ -112,16 +113,20 @@ def reached_by_the_node(path, lines):
         raise SystemExit(
             "the provisioning profile " + PROFILE + " does not carry Push Notifications: turn Push "
             "Notifications on for the App ID, regenerate the profile, and put it in IOS_MOBILE_PROVISION")
-    named = lines[lines.index(ENTITLEMENTS) + 1]
+    at = lines.index(ENTITLEMENTS) + 1
+    named = lines[at]
     if not named.startswith(ENTITLEMENTS_PATH):
         raise ValueError("the template names no entitlements path under entitlements: " + named)
-    at = os.path.join(os.path.dirname(path), named[len(ENTITLEMENTS_PATH):].strip())
-    with open(at, "rb") as held:
+    held_at = os.path.join(os.path.dirname(path), named[len(ENTITLEMENTS_PATH):].strip())
+    with open(held_at, "rb") as held:
         entitled = plistlib.load(held)
     entitled["aps-environment"] = "production"
-    with open(at, "wb") as held:
-        plistlib.dump(entitled, held)
-    print("entitlements:", at, sorted(entitled))
+    # Said in the project, not written into the file: xcodegen writes the file
+    # anew from what the project says of it (XcodeGen FileWriter.writePlists),
+    # and an entitlement only the file held is gone from the app that is signed.
+    lines[at + 1:at + 1] = ["      properties:"] + [
+        "        " + json.dumps(key) + ": " + json.dumps(value) for key, value in sorted(entitled.items())]
+    print("entitlements:", held_at, sorted(entitled))
 
 
 def island_is_signed(island):
