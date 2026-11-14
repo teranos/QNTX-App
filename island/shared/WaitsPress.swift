@@ -39,13 +39,13 @@ struct PressWaits: LiveActivityIntent {
     // A press does what a person decided: every way it ends is said, where
     // the person sees it and where the node writes it down.
     guard let stands = Activity<WaitsAttributes>.activities.first(where: { $0.id == activity }) else {
-      waitsIsSeen("press-not-done nothing-stands-as \(activity) asked=\(asks)")
+      await waitsIsHeard("press-not-done nothing-stands-as \(activity) asked=\(asks)")
       throw WaitsPressNotDone(says: "what was pressed no longer stands")
     }
     let shown = stands.content.state
     guard shown.presses.indices.contains(press), shown.presses[press].asks == asks else {
       // What stands changed under the finger: nothing is asked, and it says so.
-      waitsIsSeen("press-not-done it-changed of=\(stands.attributes.waits) asked=\(asks)")
+      await waitsIsHeard("press-not-done it-changed of=\(stands.attributes.waits) asked=\(asks)")
       var changed = shown
       changed.says = "it changed: press again"
       await stands.update(ActivityContent(state: changed, staleDate: nil))
@@ -55,11 +55,11 @@ struct PressWaits: LiveActivityIntent {
     // One press of one thing at a time: a second tap before the first is
     // answered asks the node nothing.
     guard PressesInHand.take(activity) else {
-      waitsIsSeen("press-not-done already-asking of=\(stands.attributes.waits)")
+      await waitsIsHeard("press-not-done already-asking of=\(stands.attributes.waits)")
       return .result()
     }
     defer { PressesInHand.give(activity) }
-    waitsIsSeen("pressed \(pressed.does) of=\(stands.attributes.waits)")
+    await waitsIsHeard("pressed \(pressed.does) of=\(stands.attributes.waits)")
 
     // Pressed: nothing more is pressed while the node is asked.
     var asking = shown
@@ -69,7 +69,7 @@ struct PressWaits: LiveActivityIntent {
 
     do {
       try await waitsNodeIsAsked(pressed.path, pressed.sent)
-      waitsIsSeen("press-done \(pressed.does) of=\(stands.attributes.waits)")
+      await waitsIsHeard("press-done \(pressed.does) of=\(stands.attributes.waits)")
       // Done: it says what became of it and leaves. What was delayed leaves at
       // once, for it is not over: the node starts it again for the wait
       // before its new time. What was sent or canceled leaves in a minute.
@@ -83,7 +83,7 @@ struct PressWaits: LiveActivityIntent {
     } catch {
       // Not done: it says so. What the node said meanwhile stands; where it
       // said nothing, the presses are there to press again.
-      waitsIsSeen("press-not-done \(pressed.does) of=\(stands.attributes.waits): \(error.localizedDescription)")
+      await waitsIsHeard("press-not-done \(pressed.does) of=\(stands.attributes.waits): \(error.localizedDescription)")
       var failed = stands.content.state == asking ? shown : stands.content.state
       failed.says = "\(pressed.says) was not done: \(error.localizedDescription)"
       await stands.update(ActivityContent(state: failed, staleDate: nil))

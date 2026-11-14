@@ -162,7 +162,21 @@ private func theCookies(for asked: URL) async -> [HTTPCookie] {
 // writes down whoever asks, and says itself in the place a client names
 // itself. It carries no session and is answered by nothing that matters.
 func waitsIsSeen(_ what: String) {
-  guard let node = try? theNode(), let at = URL(string: "/api/phones", relativeTo: node) else { return }
+  guard let says = seenAs(what) else { return }
+  URLSession.shared.dataTask(with: says).resume()
+}
+
+// The same, said before it returns. A press runs in a process the system
+// suspends as soon as the press returns, and what was only begun then never
+// leaves the phone: a press says each step this way, so every press is in the
+// node's log, whatever became of it.
+func waitsIsHeard(_ what: String) async {
+  guard let says = seenAs(what) else { return }
+  _ = try? await URLSession.shared.data(for: says)
+}
+
+private func seenAs(_ what: String) -> URLRequest? {
+  guard let node = try? theNode(), let at = URL(string: "/api/phones", relativeTo: node) else { return nil }
   let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
   let plain = String(what.unicodeScalars.filter { $0.isASCII && $0.value >= 32 }.prefix(160))
   var says = URLRequest(url: at)
@@ -170,7 +184,7 @@ func waitsIsSeen(_ what: String) {
   says.timeoutInterval = 10
   says.httpShouldHandleCookies = false
   says.setValue("QNTX-waits/\(build) \(plain)", forHTTPHeaderField: "User-Agent")
-  URLSession.shared.dataTask(with: says).resume()
+  return says
 }
 
 // Asks the node at path, a path of its API, with what is sent there. Throws
