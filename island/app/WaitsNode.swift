@@ -117,8 +117,44 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
     let held = kept(for: node)
     return (held, held == nil ? "page-gave-no-answer-none-kept" : "kept")
   }
+  if session.isEmpty, let held = kept(for: node) {
+    return await restored(held, to: page, at: node)
+  }
   keep(session, for: node)
   return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
+}
+
+// The page holds no session and the Keychain holds one. The page's storage
+// does not outlive the app's process: q admitted the app as ROOT at 19:13:04
+// on 2026-11-14, the app started again at 19:14:00, and at 19:14:16 its page
+// held none. What the node still admits is put back into the page, which is
+// loaded again with it. What the node ended, by a logout or otherwise, is
+// let go of. Where the node is not reached, what is kept stays kept.
+@MainActor
+private func restored(_ held: String, to page: WKWebView, at node: URL) async -> (session: String?, from: String) {
+  guard let at = URL(string: "/auth/user/arrival", relativeTo: node) else { return (held, "kept") }
+  var asks = URLRequest(url: at)
+  asks.timeoutInterval = 10
+  asks.httpShouldHandleCookies = false
+  asks.setValue("Bearer \(held)", forHTTPHeaderField: "Authorization")
+  guard let (_, answer) = try? await URLSession.shared.data(for: asks),
+    let status = (answer as? HTTPURLResponse)?.statusCode
+  else {
+    return (held, "kept-node-not-reached")
+  }
+  if status == 401 {
+    keep(nil, for: node)
+    return (nil, "page-holds-none-node-ended-kept")
+  }
+  guard (200..<300).contains(status),
+    let quoted = try? JSONSerialization.data(withJSONObject: [heldAs, held]),
+    let both = String(data: quoted, encoding: .utf8)
+  else {
+    return (held, "kept-node-answered-\(status)")
+  }
+  _ = try? await page.evaluateJavaScript("(function(s){localStorage.setItem(s[0], s[1]); location.reload();})(\(both))")
+  waitsIsSeen("restored the session to the page")
+  return (held, "restored")
 }
 
 // A mark of who is in the app now, to tell one session from the next by. It is not the session.
