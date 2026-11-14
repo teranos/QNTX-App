@@ -80,7 +80,7 @@ def uploads(app, **filters):
     """What Apple made of each upload: one that it refuses is never a build,
     and the upload is where it says why."""
     out = []
-    # Apple lists what was announced and never sent first, undated: those are left out, and the rest is the newest twelve.
+    # 「[Fable 5.2, Opus 5.5] Apple lists what was announced and never sent first, undated: those are left out, and the rest is the newest twelve.」
     sent, page, pages = [], get(f"/apps/{app}/buildUploads", **{"limit": 200, **filters}), 0
     while True:
         sent += [u for u in page["data"] if u["attributes"].get("uploadedDate")]
