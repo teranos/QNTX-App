@@ -211,8 +211,12 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   // A session the node no longer admits is not kept: logged out, the node
   // ended it (teranos/QNTX server/auth, handleLogout), and it is never
   // presented from here again.
+  // Only the session this asking presented: one kept since, by another login,
+  // is not the one the node refused.
   if status == 401 {
-    keep(nil, for: node)
+    if kept(for: node) == session {
+      keep(nil, for: node)
+    }
   }
   guard (200..<300).contains(status) else {
     let words = String(data: said.prefix(200), encoding: .utf8) ?? ""
