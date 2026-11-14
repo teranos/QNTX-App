@@ -1,20 +1,20 @@
-# The island-apple workflow. .github/workflows/island-apple.yml is emitted from
-# this and is never edited by hand:
+# 「[Fable 5.2, Opus 5.5] The island-apple workflow. .github/workflows/island-apple.yml is emitted from」
+# 「[Fable 5.2, Opus 5.5] this and is never edited by hand:」
 #
-#   nix eval --json --file ci/island-apple.nix | jq . > .github/workflows/island-apple.yml
+#   「[Fable 5.2, Opus 5.5] nix eval --json --file ci/island-apple.nix | jq . > .github/workflows/island-apple.yml」
 #
-# JSON is YAML, so GitHub reads the emitted file as it is.
+# 「[Fable 5.2, Opus 5.5] JSON is YAML, so GitHub reads the emitted file as it is.」
 let
   island = import ./island.nix;
 in
 {
   name = "island-apple";
 
-  # The island is its own bundle, and Apple signs nothing without an App ID
-  # and a provisioning profile for it. This asks Apple for both with the key
-  # CI holds, makes what is missing, and keeps the profile as the run's
-  # artifact, for whoever sets it as IOS_ISLAND_MOBILE_PROVISION.
-  # Asked for, never on a push: what it makes at Apple is what builds sign with.
+  # 「[Fable 5.2, Opus 5.5] The island is its own bundle, and Apple signs nothing without an App ID」
+  # 「[Fable 5.2, Opus 5.5] and a provisioning profile for it. This asks Apple for both with the key」
+  # 「[Fable 5.2, Opus 5.5] CI holds, makes what is missing, and keeps the profile as the run's」
+  # 「[Fable 5.2, Opus 5.5] artifact, for whoever sets it as IOS_ISLAND_MOBILE_PROVISION.」
+  # 「[Fable 5.2, Opus 5.5] Asked for, never on a push: what it makes at Apple is what builds sign with.」
   on.workflow_dispatch = null;
 
   jobs.ask = {
