@@ -5,11 +5,11 @@ import WidgetKit
 
 // "the magic island"
 //
-// What waits on a person, drawn: the compact pill with the time left, the
-// view held open with what it is and its presses, and the lock screen. The
-// Mac's menu bar shows the same. Everything drawn is what the node said
-// (island/shared/WaitsAttributes.swift); a press is PressWaits
-// (island/shared/WaitsPress.swift).
+// 「[Fable 5.2, Opus 5.5] What waits on a person, drawn: the compact pill with the time left, the」
+// 「[Fable 5.2, Opus 5.5] view held open with what it is and its presses, and the lock screen. The」
+// 「[Fable 5.2, Opus 5.5] Mac's menu bar shows the same. Everything drawn is what the node said」
+// 「[Fable 5.2, Opus 5.5] (island/shared/WaitsAttributes.swift); a press is PressWaits」
+// 「[Fable 5.2, Opus 5.5] (island/shared/WaitsPress.swift).」
 //
 // QNTX's own look: near-black surfaces, the botanical green, JetBrains Mono's
 // stand-in (the system monospace), SEG glyphs and no emoji.
@@ -24,7 +24,7 @@ private let armedRed = Color(red: 0xe4 / 255, green: 0x47 / 255, blue: 0x47 / 25
 
 private let mono = Font.system(size: 11, design: .monospaced)
 
-// The segment a part is drawn as.
+// 「[Fable 5.2, Opus 5.5] The segment a part is drawn as.」
 private func colorOf(_ state: String) -> Color {
   switch state {
   case "done": return Color(red: 0x22 / 255, green: 0xc6 / 255, blue: 0x5e / 255)
@@ -51,8 +51,8 @@ private struct Segments: View {
   }
 }
 
-// The time left until it runs out, counting down by itself: the system draws
-// it, and nothing has to say each second to it.
+// 「[Fable 5.2, Opus 5.5] The time left until it runs out, counting down by itself: the system draws」
+// 「[Fable 5.2, Opus 5.5] it, and nothing has to say each second to it.」
 @available(iOS 17.2, *)
 private struct TimeLeft: View {
   let due: Double
@@ -70,7 +70,7 @@ private struct TimeLeft: View {
   }
 }
 
-// The person's answers, each one a press that asks the node without the app being opened.
+// 「[Fable 5.2, Opus 5.5] The person's answers, each one a press that asks the node without the app being opened.」
 @available(iOS 17.2, *)
 private struct Presses: View {
   let activity: String
@@ -80,7 +80,7 @@ private struct Presses: View {
     HStack(spacing: 8) {
       ForEach(Array(presses.enumerated()), id: \.offset) { at, press in
         Button(intent: PressWaits(activity: activity, press: at, asks: press.asks)) {
-          // A press is the system's own mark and no word: the word is what is read out for it.
+          // 「[Fable 5.2, Opus 5.5] A press is the system's own mark and no word: the word is what is read out for it.」
           Image(systemName: markOf(press.does))
             .font(.system(size: 18, weight: .semibold))
             .foregroundColor(press.armed ? armedRed : .white)

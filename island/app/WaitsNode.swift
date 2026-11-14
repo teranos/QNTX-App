@@ -3,28 +3,28 @@ import Security
 import UIKit
 import WebKit
 
-// The node, asked from the app's own process as the page asks it: at the
-// origin the app was built for, with the session the page is logged in with.
+// 「[Fable 5.2, Opus 5.5] The node, asked from the app's own process as the page asks it: at the」
+// 「[Fable 5.2, Opus 5.5] origin the app was built for, with the session the page is logged in with.」
 //
-// The app's page is at another site than the node, so no cookie of the node's
-// rides its requests: the page holds its session itself and presents it as a
-// bearer on each one (QNTX-Web ts/client/session.ts), and the node admits
-// that as the person (teranos/QNTX server/auth/presented.go). What is asked
-// here presents the same session: it is read from the page while the page is
-// there, and kept in the Keychain for when the system runs the app with no
-// page, as it does for a press on the island. Where the page is let keep the
-// node's cookies, those are presented too. No token is made for it.
+// 「[Fable 5.2, Opus 5.5] The app's page is at another site than the node, so no cookie of the node's」
+// 「[Fable 5.2, Opus 5.5] rides its requests: the page holds its session itself and presents it as a」
+// 「[Fable 5.2, Opus 5.5] bearer on each one (QNTX-Web ts/client/session.ts), and the node admits」
+// 「[Fable 5.2, Opus 5.5] that as the person (teranos/QNTX server/auth/presented.go). What is asked」
+// 「[Fable 5.2, Opus 5.5] here presents the same session: it is read from the page while the page is」
+// 「[Fable 5.2, Opus 5.5] there, and kept in the Keychain for when the system runs the app with no」
+// 「[Fable 5.2, Opus 5.5] page, as it does for a press on the island. Where the page is let keep the」
+// 「[Fable 5.2, Opus 5.5] node's cookies, those are presented too. No token is made for it.」
 
 struct WaitsNodeRefused: LocalizedError {
   let says: String
   var errorDescription: String? { says }
 }
 
-// Where the page holds its session (QNTX-Web ts/client/session.ts, KEY).
+// 「[Fable 5.2, Opus 5.5] Where the page holds its session (QNTX-Web ts/client/session.ts, KEY).」
 private let heldAs = "qntx.session"
 
-// Where the node is: Info.plist's QNTXNode, written when the app is built
-// (.github/scripts/ios-project.py), as the page's own API origin is.
+// 「[Fable 5.2, Opus 5.5] Where the node is: Info.plist's QNTXNode, written when the app is built」
+// 「[Fable 5.2, Opus 5.5] (.github/scripts/ios-project.py), as the page's own API origin is.」
 private func theNode() throws -> URL {
   guard let said = Bundle.main.object(forInfoDictionaryKey: "QNTXNode") as? String, let node = URL(string: said),
     node.scheme == "https", node.host != nil
@@ -34,8 +34,8 @@ private func theNode() throws -> URL {
   return node
 }
 
-// A session is kept for the node it is of, by its whole origin: scheme, host
-// and port. One kept for another node at the same host is not this node's.
+// 「[Fable 5.2, Opus 5.5] A session is kept for the node it is of, by its whole origin: scheme, host」
+// 「[Fable 5.2, Opus 5.5] and port. One kept for another node at the same host is not this node's.」
 private func keychain(_ node: URL) -> [String: Any] {
   var origin = (node.scheme ?? "") + "://" + (node.host ?? "")
   if let port = node.port { origin += ":" + String(port) }
@@ -62,12 +62,12 @@ private func keep(_ session: String?, for node: URL) {
   guard let session = session, !session.isEmpty else { return }
   var adds = keychain(node)
   adds[kSecValueData as String] = Data(session.utf8)
-  // Read with the phone locked too: a press on the lock screen is answered there.
+  // 「[Fable 5.2, Opus 5.5] Read with the phone locked too: a press on the lock screen is answered there.」
   adds[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
   SecItemAdd(adds as CFDictionary, nil)
 }
 
-// The app's page, where there is one: the web view Tauri put in the window.
+// 「[Fable 5.2, Opus 5.5] The app's page, where there is one: the web view Tauri put in the window.」
 @MainActor
 private func thePage() -> WKWebView? {
   func within(_ view: UIView) -> WKWebView? {
@@ -86,9 +86,9 @@ private func thePage() -> WKWebView? {
   return nil
 }
 
-// The session the app is in, and where it was found. Asked of the page while
-// it is there, and what the page says is what stands: logged out, nothing is
-// kept. With no page, what was kept when there last was one.
+// 「[Fable 5.2, Opus 5.5] The session the app is in, and where it was found. Asked of the page while」
+// 「[Fable 5.2, Opus 5.5] it is there, and what the page says is what stands: logged out, nothing is」
+// 「[Fable 5.2, Opus 5.5] kept. With no page, what was kept when there last was one.」
 @MainActor
 private func theSession(at node: URL) async -> (session: String?, from: String) {
   guard let page = thePage() else {
@@ -99,8 +99,8 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
     let held = kept(for: node)
     return (held, held == nil ? "page-loading-none-kept" : "kept")
   }
-  // A page the system has suspended may never answer: it is given three
-  // seconds, and then what was kept stands. A press is not left waiting on it.
+  // 「[Fable 5.2, Opus 5.5] A page the system has suspended may never answer: it is given three」
+  // 「[Fable 5.2, Opus 5.5] seconds, and then what was kept stands. A press is not left waiting on it.」
   let said: String? = await withCheckedContinuation { (answered: CheckedContinuation<String?, Never>) in
     var once = false
     let answer: (String?) -> Void = { said in
@@ -121,7 +121,7 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
   return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
 }
 
-// A mark of who is in the app now, to tell one session from the next by. It is not the session.
+// 「[Fable 5.2, Opus 5.5] A mark of who is in the app now, to tell one session from the next by. It is not the session.」
 func waitsSessionMark() async -> String {
   guard let node = try? theNode(), let session = await theSession(at: node).session else { return "" }
   var mark: UInt64 = 1469598103934665603
@@ -131,11 +131,11 @@ func waitsSessionMark() async -> String {
   return String(mark, radix: 16)
 }
 
-// The node's own cookies in the page's store, as a browser would send them to
-// what is asked: where the page is let keep them, the session rides there, as
-// it does on the node's own web. A cookie set for one host alone goes to that
-// host alone, one set for a domain to the hosts under it, and each only where
-// its path leads and, kept for https, only over https.
+// 「[Fable 5.2, Opus 5.5] The node's own cookies in the page's store, as a browser would send them to」
+// 「[Fable 5.2, Opus 5.5] what is asked: where the page is let keep them, the session rides there, as」
+// 「[Fable 5.2, Opus 5.5] it does on the node's own web. A cookie set for one host alone goes to that」
+// 「[Fable 5.2, Opus 5.5] host alone, one set for a domain to the hosts under it, and each only where」
+// 「[Fable 5.2, Opus 5.5] its path leads and, kept for https, only over https.」
 @MainActor
 private func theCookies(for asked: URL) async -> [HTTPCookie] {
   let all = await withCheckedContinuation { (found: CheckedContinuation<[HTTPCookie], Never>) in
@@ -157,10 +157,10 @@ private func theCookies(for asked: URL) async -> [HTTPCookie] {
   }
 }
 
-// What this side is doing, said to the node so that it stands in the node's
-// log: nothing on a phone is seen from anywhere else. It asks a path the node
-// writes down whoever asks, and says itself in the place a client names
-// itself. It carries no session and is answered by nothing that matters.
+// 「[Fable 5.2, Opus 5.5] What this side is doing, said to the node so that it stands in the node's」
+// 「[Fable 5.2, Opus 5.5] log: nothing on a phone is seen from anywhere else. It asks a path the node」
+// 「[Fable 5.2, Opus 5.5] writes down whoever asks, and says itself in the place a client names」
+// 「[Fable 5.2, Opus 5.5] itself. It carries no session and is answered by nothing that matters.」
 func waitsIsSeen(_ what: String) {
   guard let node = try? theNode(), let at = URL(string: "/api/phones", relativeTo: node) else { return }
   let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
@@ -173,10 +173,10 @@ func waitsIsSeen(_ what: String) {
   URLSession.shared.dataTask(with: says).resume()
 }
 
-// Asks the node at path, a path of its API, with what is sent there. Throws
-// what the node answered when it did not do it.
+// 「[Fable 5.2, Opus 5.5] Asks the node at path, a path of its API, with what is sent there. Throws」
+// 「[Fable 5.2, Opus 5.5] what the node answered when it did not do it.」
 func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
-  // A path of the node's API and nothing else: what is asked never leaves the node.
+  // 「[Fable 5.2, Opus 5.5] A path of the node's API and nothing else: what is asked never leaves the node.」
   guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("//"), !path.contains("@") else {
     throw WaitsNodeRefused(says: "\(path) is no path of the node's")
   }
@@ -208,11 +208,11 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   guard let status = (answer as? HTTPURLResponse)?.statusCode else {
     throw WaitsNodeRefused(says: "the node gave no answer")
   }
-  // A session the node no longer admits is not kept: logged out, the node
-  // ended it (teranos/QNTX server/auth, handleLogout), and it is never
-  // presented from here again.
-  // Only the session this asking presented: one kept since, by another login,
-  // is not the one the node refused.
+  // 「[Fable 5.2, Opus 5.5] A session the node no longer admits is not kept: logged out, the node」
+  // 「[Fable 5.2, Opus 5.5] ended it (teranos/QNTX server/auth, handleLogout), and it is never」
+  // 「[Fable 5.2, Opus 5.5] presented from here again.」
+  // 「[Fable 5.2, Opus 5.5] Only the session this asking presented: one kept since, by another login,」
+  // 「[Fable 5.2, Opus 5.5] is not the one the node refused.」
   if status == 401 {
     if kept(for: node) == session {
       keep(nil, for: node)

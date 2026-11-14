@@ -32,8 +32,8 @@ if len(metadata) != 1:
     raise SystemExit('the app carries no Metadata.appintents: the system would find no press to run in it')
 
 
-# What the island needs of the app itself, read from what was built: where the
-# node is, for a press to ask it, and that the app may have Live Activities.
+# 「[Fable 5.2, Opus 5.5] What the island needs of the app itself, read from what was built: where the」
+# 「[Fable 5.2, Opus 5.5] node is, for a press to ask it, and that the app may have Live Activities.」
 import plistlib
 
 for app in (archive / 'Products/Applications').glob('*.app'):
@@ -78,9 +78,9 @@ with tempfile.TemporaryDirectory() as held:
         security('list-keychains', '-d', 'user', '-s', *before)
         security('delete-keychain', keychain)
 
-# What the app that was exported is signed as being allowed: read back from
-# the IPA itself, for what was written into the project is not what Apple
-# reads. Without aps-environment Apple gives the app no token of any kind.
+# 「[Fable 5.2, Opus 5.5] What the app that was exported is signed as being allowed: read back from」
+# 「[Fable 5.2, Opus 5.5] the IPA itself, for what was written into the project is not what Apple」
+# 「[Fable 5.2, Opus 5.5] reads. Without aps-environment Apple gives the app no token of any kind.」
 import zipfile
 
 ipas = list((root / 'build/island-export').glob('*.ipa'))

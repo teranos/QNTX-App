@@ -1,9 +1,9 @@
 import Foundation
 
-// A press is run by the system in the app's process, never in the widget's:
-// the widget draws the press and names it. This stands where the app's own
-// asking of the node stands (island/app/WaitsNode.swift), so that the press
-// compiles here too.
+// 「[Fable 5.2, Opus 5.5] A press is run by the system in the app's process, never in the widget's:」
+// 「[Fable 5.2, Opus 5.5] the widget draws the press and names it. This stands where the app's own」
+// 「[Fable 5.2, Opus 5.5] asking of the node stands (island/app/WaitsNode.swift), so that the press」
+// 「[Fable 5.2, Opus 5.5] compiles here too.」
 struct WaitsNodeRefused: LocalizedError {
   let says: String
   var errorDescription: String? { says }
