@@ -11,8 +11,8 @@ import UIKit
 //
 // The node takes them in the person's own session (teranos/QNTX
 // server/phones.go, HandlePhone). Before the app is logged in it takes none,
-// so the newest of each is kept, and what the node has not taken is handed
-// over again: when the app comes to the front, and after a wait that doubles
+// so the newest of each is kept, and what the node has not taken, or has not
+// been told is over, is handed over again: when the app comes to the front, and after a wait that doubles
 // each time it is refused, up to ten minutes.
 @objc(WaitsTokens)
 final class WaitsTokens: NSObject {
@@ -34,6 +34,9 @@ final class WaitsTokens: NSObject {
   // another person in the app, it is handed over anew.
   private static var taken: [String: Held] = [:]
   private static var takenWith = ""
+  // What is over and the node has not been told so yet, by the activity's id:
+  // it is told until it takes it, as a token is handed until it is taken.
+  private static var over: [String: Held] = [:]
   private static let turn = DispatchQueue(label: "waits.tokens")
   private static var begun = false
   private static var again: Task<Void, Never>?
@@ -106,15 +109,12 @@ final class WaitsTokens: NSObject {
       // Over: nothing of this one is handed over again, and the node is told
       // it no longer stands here, so that it starts what waits anew where it
       // would. Another of the same thing is another id.
-      let last: Held? = turn.sync {
-        let last = newest[id]
+      turn.sync {
+        if let last = newest[id] { over[id] = last }
         newest[id] = nil
         taken[id] = nil
-        return last
       }
-      if let last = last {
-        _ = await say(last, gone: true)
-      }
+      await handAll()
     }
   }
 
@@ -146,7 +146,16 @@ final class WaitsTokens: NSObject {
         left = true
       }
     }
-    let still = turn.sync { newest.contains { taken[$0.key] != $0.value } }
+    // What is over is said until the node takes it: one it still holds as
+    // standing here is one it does not start again.
+    for (id, held) in turn.sync(execute: { over }) {
+      if await say(held, gone: true) {
+        turn.sync { if over[id] == held { over[id] = nil } }
+      } else {
+        left = true
+      }
+    }
+    let still = turn.sync { !over.isEmpty || newest.contains { taken[$0.key] != $0.value } }
     guard left || still else {
       turn.sync { refused = 0 }
       return
