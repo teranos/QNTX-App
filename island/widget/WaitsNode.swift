@@ -14,3 +14,5 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
 }
 
 func waitsIsSeen(_ what: String) {}
+
+func waitsIsHeard(_ what: String) async {}
