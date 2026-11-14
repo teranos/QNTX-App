@@ -97,7 +97,7 @@ if __name__ == '__main__':
                 BUNDLE: os.environ['SHARE_PROVISIONING_PROFILE'],
             },
         }
-        # The archive carries the island too when it is built, and an export names every bundle it signs.
+        # 「[Fable 5.2, Opus 5.5] The archive carries the island too when it is built, and an export names every bundle it signs.」
         island = os.environ.get('ISLAND_PROVISIONING_PROFILE', '')
         if island:
             export['provisioningProfiles'][next(iter(export['provisioningProfiles'])) + '.island'] = island
