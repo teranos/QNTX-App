@@ -36,8 +36,6 @@ struct PressWaits: LiveActivityIntent {
   }
 
   func perform() async throws -> some IntentResult {
-    // "SO YOU VIOLATE ERROR AXIOM ALL THE FUCKING TIME"
-    // "CANT YOU SEE THIS CODEPATH IS CRITICAL"
     // A press does what a person decided: every way it ends is said, where
     // the person sees it and where the node writes it down.
     guard let stands = Activity<WaitsAttributes>.activities.first(where: { $0.id == activity }) else {

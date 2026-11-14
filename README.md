@@ -79,8 +79,6 @@ Off a phone there is no shake, and `snapshot` says it is unsupported.
 
 > THE BATCH IS A LIVE ACTIVITY
 
-> AND SO IS THE APPROCAL
-
 That is `island/`. The node starts it, says all it shows and ends it; the app
 draws it, hands the node the tokens Apple gives it, and answers a press. The
 story, what a press is and what it rests on are the node's to say:

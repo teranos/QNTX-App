@@ -4,7 +4,6 @@ import SwiftUI
 import WidgetKit
 
 // "the magic island"
-// "TO STAY THERE FOR 15 MINYTES, LIKE LUMA DOES"
 //
 // What waits on a person, drawn: the compact pill with the time left, the
 // view held open with what it is and its presses, and the lock screen. The
@@ -81,7 +80,6 @@ private struct Presses: View {
     HStack(spacing: 8) {
       ForEach(Array(presses.enumerated()), id: \.offset) { at, press in
         Button(intent: PressWaits(activity: activity, press: at, asks: press.asks)) {
-          // "I FIND THAT CANCER EVERYWEHERE WHERE YOU DO THIS"
           // A press is the system's own mark and no word: the word is what is read out for it.
           Image(systemName: markOf(press.does))
             .font(.system(size: 18, weight: .semibold))

@@ -53,7 +53,7 @@ journalctl -u qntx | grep QNTX-waits
 
 ## What has stood on a phone
 
-On 2026-11-13 four approvals stood on an iPhone and a Mac, started by the
-node with the app closed, and a press on one merged its pull request. A held
-batch has not stood on a phone yet. Whoever wrote this has no phone: what is
-proven without one is what the build reads back.
+On 2026-11-13 Live Activities stood on an iPhone and a Mac, started by the
+node with the app closed, and a press on one merged its pull request. On
+2026-11-14 a collection pending for a session stood, with its countdown and
+three marks. ADR-060 holds the times, what is settled and what is not built.
