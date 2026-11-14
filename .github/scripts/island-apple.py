@@ -27,9 +27,9 @@ import jwt
 import requests
 
 ASC = "https://api.appstoreconnect.apple.com/v1"
-# The app's bundle identifier is tauri.conf.json's, read rather than restated.
+# 「[Fable 5.2, Opus 5.5] The app's bundle identifier is tauri.conf.json's, read rather than restated.」
 ISLAND = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "tauri.conf.json")))["identifier"] + ".island"
-# The profile's name is the workflow's to say, which says it to the build too (ci/island.nix).
+# 「[Fable 5.2, Opus 5.5] The profile's name is the workflow's to say, which says it to the build too (ci/island.nix).」
 ISLAND_PROFILE = os.environ["ISLAND_PROVISIONING_PROFILE"]
 
 
@@ -68,7 +68,7 @@ def the_app_id():
     if r.status_code == 201:
         print("App ID:", ISLAND, "registered now,", r.json()["data"]["id"])
         return r.json()["data"]["id"]
-    # Another run registered it between the asking and the making: it is there now, and is used.
+    # 「[Fable 5.2, Opus 5.5] Another run registered it between the asking and the making: it is there now, and is used.」
     for held in get("/bundleIds", **{"filter[identifier]": ISLAND, "limit": 200})["data"]:
         if held["attributes"]["identifier"] == ISLAND:
             print("App ID:", ISLAND, "was registered meanwhile,", held["id"])
@@ -97,13 +97,13 @@ def the_profile(app_id, certificates):
         a = held["attributes"]
         if a["name"] != ISLAND_PROFILE or a["profileState"] != "ACTIVE" or a["profileType"] != "IOS_APP_STORE":
             continue
-        # One made for another App ID or against another certificate signs nothing here.
+        # 「[Fable 5.2, Opus 5.5] One made for another App ID or against another certificate signs nothing here.」
         of = get(f"/profiles/{held['id']}/bundleId")["data"]["id"]
         against = sorted(c["id"] for c in get(f"/profiles/{held['id']}/certificates", limit=200)["data"])
         if of == app_id and against == sorted(certificates):
             print("profile:", repr(ISLAND_PROFILE), "is held,", held["id"], "expires", a["expirationDate"])
             return a["profileContent"]
-        # Never taken away from here: it may be the one builds sign with, and a run on any branch would revoke it.
+        # 「[Fable 5.2, Opus 5.5] Never taken away from here: it may be the one builds sign with, and a run on any branch would revoke it.」
         sys.exit(
             f"Apple holds the profile {ISLAND_PROFILE!r} ({held['id']}) of {of} against {against}, and the island is "
             f"{app_id} against {sorted(certificates)}: it signs nothing here. Revoke it at Apple, and run this again")
