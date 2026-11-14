@@ -35,7 +35,6 @@
     "opener:allow-default-urls",
     "sheet:default",
     "shake:default",
-    "share:default",
-    "island:default"
+    "share:default"
   ]
 }

@@ -1,0 +1,38 @@
+{
+  "jobs": {
+    "ask": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "run": "pip install --quiet 'pyjwt[crypto]' requests"
+        },
+        {
+          "env": {
+            "APPLE_API_ISSUER": "${{ secrets.APPLE_API_ISSUER }}",
+            "APPLE_API_KEY": "${{ secrets.APPLE_API_KEY }}",
+            "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}",
+            "ISLAND_PROVISIONING_PROFILE": "QNTX island",
+            "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
+          },
+          "name": "The island's App ID and profile at Apple",
+          "run": "python3 .github/scripts/island-apple.py island.mobileprovision"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "island-profile",
+            "path": "island.mobileprovision",
+            "retention-days": 1
+          }
+        }
+      ]
+    }
+  },
+  "name": "island-apple",
+  "on": {
+    "workflow_dispatch": null
+  }
+}

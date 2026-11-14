@@ -81,7 +81,10 @@
         {
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
-            "ISLAND_PROVISIONING_PROFILE": "${{ vars.ISLAND_PROVISIONING_PROFILE }}",
+            "BACKEND_URL": "${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}",
+            "IOS_ISLAND_MOBILE_PROVISION": "${{ secrets.IOS_ISLAND_MOBILE_PROVISION }}",
+            "IOS_MOBILE_PROVISION": "${{ secrets.IOS_MOBILE_PROVISION }}",
+            "ISLAND_PROVISIONING_PROFILE": "QNTX island",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },
           "name": "Sign against the profile, not an account",
@@ -91,6 +94,7 @@
           "env": {
             "APPLE_DEVELOPMENT_TEAM": "${{ secrets.APPLE_DEVELOPMENT_TEAM }}",
             "IOS_SHARE_MOBILE_PROVISION": "${{ secrets.IOS_SHARE_MOBILE_PROVISION }}",
+            "ISLAND_PROVISIONING_PROFILE": "QNTX island",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}",
             "SHARE_PROVISIONING_PROFILE": "${{ vars.SHARE_PROVISIONING_PROFILE }}"
           },
@@ -111,7 +115,7 @@
             "IOS_SHARE_EXTENSION": "${{ vars.IOS_SHARE_EXTENSION }}"
           },
           "name": "Build signed IPA",
-          "run": "if [ \"$IOS_SHARE_EXTENSION\" = \"true\" ]; then\n  cargo tauri ios build --archive-only --build-number ${{ github.run_number }}\n  python3 .github/scripts/export-share-ipa.py\nelse\n  cargo tauri ios build --export-method app-store-connect --build-number ${{ github.run_number }}\nfi\n"
+          "run": "if [ \"$IOS_SHARE_EXTENSION\" = \"true\" ]; then\n  cargo tauri ios build --archive-only --build-number ${{ github.run_number }}\n  python3 .github/scripts/export-share-ipa.py\nelse\n  # The Tauri CLI exports with the app's profile alone, and the\n  # archive carries the island: it is exported here, naming both.\n  cargo tauri ios build --archive-only --build-number ${{ github.run_number }}\n  python3 .github/scripts/export-island-ipa.py\nfi\n"
         },
         {
           "id": "ipa",
@@ -126,6 +130,7 @@
             "APPLE_APP_ID": "${{ vars.APPLE_APP_ID }}",
             "IPA": "${{ steps.ipa.outputs.path }}"
           },
+          "if": "github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'",
           "name": "Upload to TestFlight",
           "run": "test -n \"$APPLE_APP_ID\"\nmkdir -p ~/.appstoreconnect/private_keys\necho \"$APPLE_API_KEY_CONTENT\" | base64 --decode \\\n  > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8\nplist=$(mktemp)\nunzip -p \"$IPA\" 'Payload/*.app/Info.plist' > \"$plist\"\nbundle=$(plutil -extract CFBundleIdentifier raw \"$plist\")\nbuild=$(plutil -extract CFBundleVersion raw \"$plist\")\nshort=$(plutil -extract CFBundleShortVersionString raw \"$plist\")\necho \"uploading $bundle $short ($build)\"\nxcrun altool --upload-package \"$IPA\" \\\n  --type ios \\\n  --apple-id \"$APPLE_APP_ID\" \\\n  --bundle-id \"$bundle\" \\\n  --bundle-version \"$build\" \\\n  --bundle-short-version-string \"$short\" \\\n  --api-key \"$APPLE_API_KEY\" \\\n  --api-issuer \"$APPLE_API_ISSUER\"\n"
         },
@@ -136,6 +141,7 @@
             "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}",
             "BUILD": "${{ steps.qntx.outputs.version }}.${{ github.run_number }}"
           },
+          "if": "github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'",
           "name": "Delivered to testers",
           "run": "python3 -m venv \"$RUNNER_TEMP/asc\"\n\"$RUNNER_TEMP/asc/bin/pip\" install --quiet 'pyjwt[crypto]' requests\n\"$RUNNER_TEMP/asc/bin/python\" .github/scripts/delivered.py wait \"$BUILD\"\n"
         }
