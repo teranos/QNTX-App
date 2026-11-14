@@ -124,12 +124,12 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
   return (session.isEmpty ? nil : session, session.isEmpty ? "page-holds-none" : "page")
 }
 
-// The page holds no session and the Keychain holds one. The page's storage
-// does not outlive the app's process: q admitted the app as ROOT at 19:13:04
-// on 2026-11-14, the app started again at 19:14:00, and at 19:14:16 its page
-// held none. What the node still admits is put back into the page, which is
-// loaded again with it. What the node ended, by a logout or otherwise, is
-// let go of. Where the node is not reached, what is kept stays kept.
+// 「[Opus 5.5] The page holds no session and the Keychain holds one. The page's storage」
+// 「[Opus 5.5] does not outlive the app's process: q admitted the app as ROOT at 19:13:04」
+// 「[Opus 5.5] on 2026-11-14, the app started again at 19:14:00, and at 19:14:16 its page」
+// 「[Opus 5.5] held none. What the node still admits is put back into the page, which is」
+// 「[Opus 5.5] loaded again with it. What the node ended, by a logout or otherwise, is」
+// 「[Opus 5.5] let go of. Where the node is not reached, what is kept stays kept.」
 @MainActor
 private func restored(_ held: String, to page: WKWebView, at node: URL) async -> (session: String?, from: String) {
   guard let at = URL(string: "/auth/user/arrival", relativeTo: node) else { return (held, "kept") }
@@ -202,10 +202,10 @@ func waitsIsSeen(_ what: String) {
   URLSession.shared.dataTask(with: says).resume()
 }
 
-// The same, said before it returns. A press runs in a process the system
-// suspends as soon as the press returns, and what was only begun then never
-// leaves the phone: a press says each step this way, so every press is in the
-// node's log, whatever became of it.
+// 「[Opus 5.5] The same, said before it returns. A press runs in a process the system」
+// 「[Opus 5.5] suspends as soon as the press returns, and what was only begun then never」
+// 「[Opus 5.5] leaves the phone: a press says each step this way, so every press is in the」
+// 「[Opus 5.5] node's log, whatever became of it.」
 func waitsIsHeard(_ what: String) async {
   guard let says = seenAs(what) else { return }
   _ = try? await URLSession.shared.data(for: says)
