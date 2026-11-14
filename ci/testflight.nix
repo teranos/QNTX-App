@@ -8,9 +8,9 @@ let
   # The API origin baked into the bundle when a push builds, and the default a
   # dispatch offers.
   backendUrl = "https://api.q.sbvh.nl";
-  # The island's provisioning profile, by the name Apple holds it under.
+  # 「[Fable 5.2, Opus 5.5] The island's provisioning profile, by the name Apple holds it under.」
   islandProfile = (import ./island.nix).profile;
-  # What reaches a phone is asked for: main, or a build somebody dispatched.
+  # 「[Fable 5.2, Opus 5.5] What reaches a phone is asked for: main, or a build somebody dispatched.」
   # "WHY DID I SEE LIKE 10 TESTFLIGHT BUILDS WHEN I WAS WALKING"
   reachesAPhone = "github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'";
 in
@@ -196,14 +196,14 @@ in
             APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
             PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
             # "the magic island": its widget is its own bundle, signed by its
-            # own profile, by name here and itself in the secret
-            # (.github/workflows/island-apple.yml asks Apple for it).
+            # 「[Fable 5.2, Opus 5.5] own profile, by name here and itself in the secret」
+            # 「[Fable 5.2, Opus 5.5] (.github/workflows/island-apple.yml asks Apple for it).」
             ISLAND_PROVISIONING_PROFILE = islandProfile;
             IOS_ISLAND_MOBILE_PROVISION = "\${{ secrets.IOS_ISLAND_MOBILE_PROVISION }}";
-            # Where the node is, for what the app asks of it outside the page: a press on the island.
+            # 「[Fable 5.2, Opus 5.5] Where the node is, for what the app asks of it outside the page: a press on the island.」
             BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
-            # The profile itself, to be asked whether it carries Push Notifications
-            # before the app is signed as taking them.
+            # 「[Fable 5.2, Opus 5.5] The profile itself, to be asked whether it carries Push Notifications」
+            # 「[Fable 5.2, Opus 5.5] before the app is signed as taking them.」
             IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";
           };
           run = ''
@@ -247,8 +247,8 @@ in
               cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
               python3 .github/scripts/export-share-ipa.py
             else
-              # The Tauri CLI exports with the app's profile alone, and the
-              # archive carries the island: it is exported here, naming both.
+              # 「[Fable 5.2, Opus 5.5] The Tauri CLI exports with the app's profile alone, and the」
+              # 「[Fable 5.2, Opus 5.5] archive carries the island: it is exported here, naming both.」
               cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
               python3 .github/scripts/export-island-ipa.py
             fi
