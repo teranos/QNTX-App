@@ -32,13 +32,13 @@ EMBED_AFTER = "      - sdk: WebKit.framework"
 # "the magic island": the widget that draws an approval as a Live Activity. It
 # is its own bundle, signed by its own profile, so it is in the project only
 # when that profile is named. Paths are relative to gen/apple.
-# The app's identifier is tauri.conf.json's, read rather than restated, and
-# the island's is that with .island after it, as island-apple.py asks Apple
-# for it.
+# 「[Fable 5.2, Opus 5.5] The app's identifier is tauri.conf.json's, read rather than restated, and」
+# 「[Fable 5.2, Opus 5.5] the island's is that with .island after it, as island-apple.py asks Apple」
+# 「[Fable 5.2, Opus 5.5] for it.」
 APP_ID = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tauri.conf.json")))["identifier"]
 ISLAND_ID = APP_ID + ".island"
 
-# The group the target template already pulls in via `groups: [app]`.
+# 「[Fable 5.2, Opus 5.5] The group the target template already pulls in via `groups: [app]`.」
 ANCHOR = "      PRODUCT_BUNDLE_IDENTIFIER: " + APP_ID
 ISLAND_TARGET = """  IslandWidget:
     type: app-extension
@@ -65,23 +65,23 @@ ISLAND_TARGET = """  IslandWidget:
         CODE_SIGN_IDENTITY: "Apple Distribution"
 """
 
-# The app target's last source in the template: what the app itself compiles of
-# the island goes before it. A press on the island is run by the system in the
-# app's process, and the system finds it only among what Xcode compiled into
-# the app: a Tauri plugin's Swift is built outside Xcode and is not among it.
+# 「[Fable 5.2, Opus 5.5] The app target's last source in the template: what the app itself compiles of」
+# 「[Fable 5.2, Opus 5.5] the island goes before it. A press on the island is run by the system in the」
+# 「[Fable 5.2, Opus 5.5] app's process, and the system finds it only among what Xcode compiled into」
+# 「[Fable 5.2, Opus 5.5] the app: a Tauri plugin's Swift is built outside Xcode and is not among it.」
 SOURCES_BEFORE = "      - path: LaunchScreen.storyboard"
 ISLAND_IN_THE_APP = [
     "      - path: ../../island/app",
     "      - path: ../../island/shared",
 ]
 
-# The first of the app's Info.plist properties in the template: where the node
-# is goes after it, for what the app asks of the node outside the page.
+# 「[Fable 5.2, Opus 5.5] The first of the app's Info.plist properties in the template: where the node」
+# 「[Fable 5.2, Opus 5.5] is goes after it, for what the app asks of the node outside the page.」
 INFO_AFTER = "        LSRequiresIPhoneOS: true"
 
 
-# Where the template names the app's entitlements file, which cargo-mobile2
-# writes empty beside the project.
+# 「[Fable 5.2, Opus 5.5] Where the template names the app's entitlements file, which cargo-mobile2」
+# 「[Fable 5.2, Opus 5.5] writes empty beside the project.」
 ENTITLEMENTS = "    entitlements:"
 ENTITLEMENTS_PATH = "      path: "
 
@@ -124,9 +124,9 @@ def reached_by_the_node(path, lines):
     with open(held_at, "rb") as held:
         entitled = plistlib.load(held)
     entitled["aps-environment"] = "production"
-    # Said in the project, not written into the file: xcodegen writes the file
-    # anew from what the project says of it (XcodeGen FileWriter.writePlists),
-    # and an entitlement only the file held is gone from the app that is signed.
+    # 「[Fable 5.2, Opus 5.5] Said in the project, not written into the file: xcodegen writes the file」
+    # 「[Fable 5.2, Opus 5.5] anew from what the project says of it (XcodeGen FileWriter.writePlists),」
+    # 「[Fable 5.2, Opus 5.5] and an entitlement only the file held is gone from the app that is signed.」
     lines[at + 1:at + 1] = ["      properties:"] + [
         "        " + json.dumps(key) + ": " + json.dumps(value) for key, value in sorted(entitled.items())]
     print("entitlements:", held_at, sorted(entitled))
@@ -181,7 +181,7 @@ def main(path):
     island = os.environ.get("ISLAND_PROVISIONING_PROFILE", "")
     if island:
         node = os.environ.get("BACKEND_URL", "")
-        # Over https: the system lets the app ask nothing else of a node, the page or a press.
+        # 「[Fable 5.2, Opus 5.5] Over https: the system lets the app ask nothing else of a node, the page or a press.」
         if not node.startswith("https://"):
             raise SystemExit("BACKEND_URL names no node over https, and a press on the island asks the node: " + repr(node))
         embed = lines.index(EMBED_AFTER)
@@ -193,10 +193,10 @@ def main(path):
         lines[before:before] = ISLAND_IN_THE_APP
         info = lines.index(INFO_AFTER)
         lines[info + 1:info + 1] = ["        QNTXNode: " + node]
-        # The app compiles Swift of its own now, which the template never had.
+        # 「[Fable 5.2, Opus 5.5] The app compiles Swift of its own now, which the template never had.」
         at = lines.index(ANCHOR)
-        # Live Activities and presses are newer than the oldest iOS the app
-        # runs on: linked weakly, the app starts where they are not there.
+        # 「[Fable 5.2, Opus 5.5] Live Activities and presses are newer than the oldest iOS the app」
+        # 「[Fable 5.2, Opus 5.5] runs on: linked weakly, the app starts where they are not there.」
         lines[at + 1:at + 1] = [
             '      SWIFT_VERSION: "5.0"',
             '      OTHER_LDFLAGS: "$(inherited) -weak_framework ActivityKit -weak_framework AppIntents -weak_framework WidgetKit"',
