@@ -131,17 +131,29 @@ func waitsSessionMark() async -> String {
   return String(mark, radix: 16)
 }
 
-// The node's own cookies in the page's store: where the page is let keep
-// them, the session rides there, as it does on the node's own web.
+// The node's own cookies in the page's store, as a browser would send them to
+// what is asked: where the page is let keep them, the session rides there, as
+// it does on the node's own web. A cookie set for one host alone goes to that
+// host alone, one set for a domain to the hosts under it, and each only where
+// its path leads and, kept for https, only over https.
 @MainActor
-private func theCookies(at node: URL) async -> [HTTPCookie] {
+private func theCookies(for asked: URL) async -> [HTTPCookie] {
   let all = await withCheckedContinuation { (found: CheckedContinuation<[HTTPCookie], Never>) in
     WKWebsiteDataStore.default().httpCookieStore.getAllCookies { found.resume(returning: $0) }
   }
-  guard let host = node.host else { return [] }
+  guard let host = asked.host else { return [] }
+  let path = asked.path.isEmpty ? "/" : asked.path
   return all.filter { cookie in
-    let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
-    return host == domain || host.hasSuffix("." + domain)
+    let ofThisHost: Bool
+    if cookie.domain.hasPrefix(".") {
+      let domain = String(cookie.domain.dropFirst())
+      ofThisHost = host == domain || host.hasSuffix("." + domain)
+    } else {
+      ofThisHost = host == cookie.domain
+    }
+    let under = cookie.path.hasSuffix("/") ? cookie.path : cookie.path + "/"
+    let onThisPath = cookie.path == "/" || path == cookie.path || path.hasPrefix(under)
+    return ofThisHost && onThisPath && (!cookie.isSecure || asked.scheme == "https")
   }
 }
 
@@ -163,7 +175,7 @@ func waitsIsSeen(_ what: String) {
 
 // Asks the node at path, a path of its API, with what is sent there. Throws
 // what the node answered when it did not do it.
-func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
+func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   // A path of the node's API and nothing else: what is asked never leaves the node.
   guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("//"), !path.contains("@") else {
     throw WaitsNodeRefused(says: "\(path) is no path of the node's")
@@ -173,7 +185,7 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
     throw WaitsNodeRefused(says: "\(path) is no path of the node's")
   }
   let (session, from) = await theSession(at: node)
-  let cookies = await theCookies(at: node)
+  let cookies = await theCookies(for: at)
   guard session != nil || !cookies.isEmpty else {
     waitsIsSeen("not-logged-in session=\(from) cookies=0 asked=\(path)")
     throw WaitsNodeRefused(says: "the app is not logged in")

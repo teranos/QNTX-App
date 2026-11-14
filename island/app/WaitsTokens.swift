@@ -103,10 +103,17 @@ final class WaitsTokens: NSObject {
         turn.sync { newest[id] = Held(token: hex(token), waits: waits) }
         await handAll()
       }
-      // Over: nothing of this one is handed over again. Another of the same thing is another id.
-      turn.sync {
+      // Over: nothing of this one is handed over again, and the node is told
+      // it no longer stands here, so that it starts what waits anew where it
+      // would. Another of the same thing is another id.
+      let last: Held? = turn.sync {
+        let last = newest[id]
         newest[id] = nil
         taken[id] = nil
+        return last
+      }
+      if let last = last {
+        _ = await say(last, gone: true)
       }
     }
   }
@@ -131,9 +138,10 @@ final class WaitsTokens: NSObject {
     }
     var left = false
     for (id, held) in owed {
-      if await say(held) {
-        // Taken as it was handed: one Apple renewed meanwhile is owed still.
-        turn.sync { if newest[id] == held { taken[id] = held } }
+      if await say(held, gone: false) {
+        // Taken as it was handed, by who was in the app then: one Apple
+        // renewed meanwhile, or handed over as another person, is owed still.
+        turn.sync { if newest[id] == held && takenWith == with { taken[id] = held } }
       } else {
         left = true
       }
@@ -160,8 +168,9 @@ final class WaitsTokens: NSObject {
     turn.sync { again = next }
   }
 
-  private static func say(_ held: Held) async -> Bool {
-    var sent = ["token": held.token, "platform": "ios"]
+  private static func say(_ held: Held, gone: Bool) async -> Bool {
+    var sent: [String: Any] = ["token": held.token, "platform": "ios"]
+    if gone { sent["gone"] = true }
     if !held.waits.isEmpty {
       sent["waits"] = held.waits
       // Which phone it stands on, by the token this phone starts them by:

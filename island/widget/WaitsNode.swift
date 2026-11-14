@@ -9,7 +9,7 @@ struct WaitsNodeRefused: LocalizedError {
   var errorDescription: String? { says }
 }
 
-func waitsNodeIsAsked(_ path: String, _ sent: [String: String]) async throws {
+func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   throw WaitsNodeRefused(says: "a press is answered in the app, and this is the widget")
 }
 
