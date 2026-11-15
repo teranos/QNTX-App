@@ -4,15 +4,15 @@ import Sentry
 
 // "the island is too critical. we need observability into the thing"
 //
-// Every failure of the island is one SacredError (teranos/sacred-error), and
-// each is made here, which is the one place it is sent from: to Sentry's
-// qntx-island project, where it is kept and raised. The caller holds the same
-// value and shows it where it happened. Nothing of the island prints a failure
-// and carries on, and nothing turns one into words on its way across.
+// 「[Opus 5.5] Every failure of the island is one SacredError (teranos/sacred-error), and」
+// 「[Opus 5.5] each is made here, which is the one place it is sent from: to Sentry's」
+// 「[Opus 5.5] qntx-island project, where it is kept and raised. The caller holds the same」
+// 「[Opus 5.5] value and shows it where it happened. Nothing of the island prints a failure」
+// 「[Opus 5.5] and carries on, and nothing turns one into words on its way across.」
 enum Island {
-  // Where failures are sent: Info.plist's QNTXIslandSentry, the DSN of Sentry's
-  // qntx-island project, written when the app is built (.github/scripts/ios-project.py)
-  // from the repository's ISLAND_SENTRY_DSN variable.
+  // 「[Opus 5.5] Where failures are sent: Info.plist's QNTXIslandSentry, the DSN of Sentry's」
+  // 「[Opus 5.5] qntx-island project, written when the app is built (.github/scripts/ios-project.py)」
+  // 「[Opus 5.5] from the repository's ISLAND_SENTRY_DSN variable.」
   private static var dsn: String? {
     Bundle.main.object(forInfoDictionaryKey: "QNTXIslandSentry") as? String
   }
@@ -21,29 +21,29 @@ enum Island {
   private static var started = false
   private static var made = 0
 
-  // Sentry, begun the first time anything is sent: the app and the widget are
-  // two processes, and either may be the first to fail.
+  // 「[Opus 5.5] Sentry, begun the first time anything is sent: the app and the widget are」
+  // 「[Opus 5.5] two processes, and either may be the first to fail.」
   private static func start() {
     turn.lock()
     defer { turn.unlock() }
     if started { return }
     started = true
-    // A build that names no DSN is refused when it is made (ios-project.py),
-    // so one that runs names one.
+    // 「[Opus 5.5] A build that names no DSN is refused when it is made (ios-project.py),」
+    // 「[Opus 5.5] so one that runs names one.」
     SentrySDK.start { options in
       options.dsn = dsn
       options.releaseName = "qntx-island@" + build
     }
   }
 
-  /// The build this is, as the bundle names it.
+  /// 「[Opus 5.5] The build this is, as the bundle names it.」
   static var build: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "a build that names no version"
   }
 
-  /// A failure of the island, made and sent: what is returned is what was
-  /// sent, and is what the caller throws or shows. Where the caller has
-  /// nowhere to show it, it was sent all the same, so it may be let go of.
+  /// 「[Opus 5.5] A failure of the island, made and sent: what is returned is what was」
+  /// 「[Opus 5.5] sent, and is what the caller throws or shows. Where the caller has」
+  /// 「[Opus 5.5] nowhere to show it, it was sent all the same, so it may be let go of.」
   @discardableResult
   static func failed(
     _ title: String, _ why: String, region: String, severity: Severity = .error, raw: String? = nil,
@@ -60,9 +60,9 @@ enum Island {
     return error
   }
 
-  /// What another layer threw, as the island's: a SacredError stays the one
-  /// it is, and was sent when it was made; anything else is made one here,
-  /// with what it said and what it is.
+  /// 「[Opus 5.5] What another layer threw, as the island's: a SacredError stays the one」
+  /// 「[Opus 5.5] it is, and was sent when it was made; anything else is made one here,」
+  /// 「[Opus 5.5] with what it said and what it is.」
   @discardableResult
   static func failed(
     _ title: String, from error: Error, region: String, severity: Severity = .error,
@@ -79,7 +79,7 @@ enum Island {
     let event = Event(level: level(error.severity))
     event.message = SentryMessage(formatted: error.title)
     event.tags = ["surface": error.context.surface, "region": error.context.region ?? "", "build": build]
-    // One issue for one failure, whatever its words said this time.
+    // 「[Opus 5.5] One issue for one failure, whatever its words said this time.」
     event.fingerprint = [error.context.region ?? "", error.title]
     var whole: [String: Any] = [
       "id": error.id, "why": error.why, "at": error.at, "location": error.location ?? "", "raw": error.raw ?? "",
@@ -89,8 +89,8 @@ enum Island {
     SentrySDK.capture(event: event)
   }
 
-  /// Sends what is waiting before the process is let go of: a press runs in a
-  /// process the system suspends as soon as the press returns.
+  /// 「[Opus 5.5] Sends what is waiting before the process is let go of: a press runs in a」
+  /// 「[Opus 5.5] process the system suspends as soon as the press returns.」
   static func flush() {
     start()
     SentrySDK.flush(timeout: 2)
