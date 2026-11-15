@@ -104,6 +104,17 @@ enum Island {
 
   /// 「[Opus 5.5] Sends what is waiting before the process is let go of: a press runs in a」
   /// 「[Opus 5.5] process the system suspends as soon as the press returns.」
+  // "deal with the silence overpowering the loud"
+  //
+  // A step the island takes, kept with Sentry as a breadcrumb: a failure sent
+  // after it carries the steps that led to it, and a step that never ended is
+  // the last one named.
+  static func step(_ what: String, region: String) {
+    let crumb = Breadcrumb(level: .info, category: "island." + region)
+    crumb.message = what
+    SentrySDK.addBreadcrumb(crumb)
+  }
+
   static func flush() {
     SentrySDK.flush(timeout: 2)
   }

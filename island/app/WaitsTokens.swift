@@ -125,13 +125,43 @@ final class WaitsTokens: NSObject {
     token.map { String(format: "%02x", $0) }.joined()
   }
 
-  // Hands the node each newest token it has not taken.
+  // The step the hand-over that runs now is at, by the pass it belongs to.
+  private static var passes = 0
+  private static var at: [Int: String] = [:]
+
+  private static func reached(_ pass: Int, _ step: String) {
+    turn.sync { at[pass] = step }
+    Island.step(step, region: "tokens")
+  }
+
+  // Hands the node each newest token it has not taken. A pass that has not
+  // ended a minute after it began is sent as a failure, naming the step it is
+  // at: a hand-over that hangs fails nothing, and said nothing.
   private static func handAll() async {
+    let pass: Int = turn.sync {
+      passes += 1
+      return passes
+    }
+    reached(pass, "began")
+    let watched = Task {
+      guard await pause(60) else { return }
+      let stuck: String? = turn.sync { at[pass] }
+      if let stuck = stuck {
+        Island.failed(
+          "a token hand-over did not end", "a minute after it began it is still at: \(stuck)", region: "tokens")
+      }
+    }
+    defer {
+      watched.cancel()
+      turn.sync { at[pass] = nil }
+    }
     if #available(iOS 17.2, *), let starts = Activity<WaitsAttributes>.pushToStartToken {
       turn.sync { newest[thePhone] = Held(token: hex(starts), waits: "") }
     }
+    reached(pass, "asking who is in the app")
     // Who is in the app and which phone token stands: with either another, everything is owed anew.
     let with = await waitsSessionMark() + " " + (turn.sync { newest[thePhone]?.token ?? "" })
+    reached(pass, "knows who is in the app")
     let owed: [String: Held] = turn.sync {
       if takenWith != with {
         taken = [:]
@@ -141,6 +171,7 @@ final class WaitsTokens: NSObject {
     }
     var left = false
     for (id, held) in owed {
+      reached(pass, "handing over \(held.waits.isEmpty ? "the phone's token" : "the token of \(held.waits)")")
       if await say(held, gone: false) {
         // Taken as it was handed, by who was in the app then: one Apple
         // renewed meanwhile, or handed over as another person, is owed still.
@@ -152,6 +183,7 @@ final class WaitsTokens: NSObject {
     // What is over is said until the node takes it: one it still holds as
     // standing here is one it does not start again.
     for (id, held) in turn.sync(execute: { over }) {
+      reached(pass, "saying \(held.waits) is over")
       if await say(held, gone: true) {
         turn.sync { if over[id] == held { over[id] = nil } }
       } else {
