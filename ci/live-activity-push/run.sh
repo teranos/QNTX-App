@@ -11,9 +11,13 @@
 set -euxo pipefail
 
 xcodegen generate
-xcodebuild build -project Probe.xcodeproj -scheme Probe -sdk iphonesimulator \
-  -destination "id=$UDID" -derivedDataPath dd -quiet
-APP=dd/Build/Products/Debug-iphonesimulator/Probe.app
+# What the build was told to sign with, said before it builds.
+xcodebuild -showBuildSettings -project Probe.xcodeproj -scheme Probe -sdk iphonesimulator \
+  | grep -F -e CODE_SIGN_ENTITLEMENTS -e CODE_SIGN_IDENTITY -e CODE_SIGNING_ALLOWED -e ENABLE_DEBUG_DYLIB
+# Release, and no debug library beside the executable: what is signed is the one binary.
+xcodebuild build -project Probe.xcodeproj -scheme Probe -configuration Release -sdk iphonesimulator \
+  -destination "id=$UDID" -derivedDataPath dd -quiet ENABLE_DEBUG_DYLIB=NO
+APP=dd/Build/Products/Release-iphonesimulator/Probe.app
 # Built for the Simulator with aps-environment, as the island is signed with
 # it. A Simulator build carries its entitlements in the binary's
 # __TEXT,__entitlements section, not in its signature: both are said, and the
@@ -23,8 +27,8 @@ codesign -d --entitlements - "$APP" > seen-signature.txt 2>&1
 echo "codesign exited $?"
 set -e
 cat seen-signature.txt
-strings -a "$APP/Probe" | grep -F -A1 aps-environment | tee seen-section.txt
-if ! grep -q -F aps-environment seen-signature.txt seen-section.txt; then
+grep -r -a -l -F aps-environment "$APP" | tee seen-section.txt
+if ! grep -q -F aps-environment seen-signature.txt && [ ! -s seen-section.txt ]; then
   echo "the probe was built without aps-environment"
   exit 1
 fi
