@@ -14,8 +14,20 @@ xcodegen generate
 xcodebuild build -project Probe.xcodeproj -scheme Probe -sdk iphonesimulator \
   -destination "id=$UDID" -derivedDataPath dd -quiet
 APP=dd/Build/Products/Debug-iphonesimulator/Probe.app
-# Signed for the Simulator with aps-environment, as the island is signed with it.
-codesign -d --entitlements - "$APP" 2>&1 | grep -F aps-environment
+# Built for the Simulator with aps-environment, as the island is signed with
+# it. A Simulator build carries its entitlements in the binary's
+# __TEXT,__entitlements section, not in its signature: both are said, and the
+# run goes on only when one of them holds it.
+set +e
+codesign -d --entitlements - "$APP" > seen-signature.txt 2>&1
+echo "codesign exited $?"
+set -e
+cat seen-signature.txt
+strings -a "$APP/Probe" | grep -F -A1 aps-environment | tee seen-section.txt
+if ! grep -q -F aps-environment seen-signature.txt seen-section.txt; then
+  echo "the probe was built without aps-environment"
+  exit 1
+fi
 
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl launch "$UDID" nl.sbvh.probe.app
