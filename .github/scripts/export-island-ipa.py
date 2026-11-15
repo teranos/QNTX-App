@@ -45,6 +45,17 @@ for app in (archive / 'Products/Applications').glob('*.app'):
         raise SystemExit('the app does not say NSSupportsLiveActivities: the system starts no Live Activity for it')
     widget = plistlib.loads((app / 'PlugIns/IslandWidget.appex/Info.plist').read_bytes())
     print('the island says:', {key: widget.get(key) for key in ('CFBundleIdentifier', 'MinimumOSVersion', 'NSExtension')})
+    # Where the island sends every failure, in both of its processes, and the
+    # SDK that sends it compiled into both (island/shared/Island.swift). A key
+    # without the SDK, or the SDK without a key, is every failure dropped.
+    for bundle, said, binary in [(app.name, info, app / info['CFBundleExecutable']),
+                                 ('IslandWidget.appex', widget,
+                                  app / 'PlugIns/IslandWidget.appex' / widget['CFBundleExecutable'])]:
+        if not str(said.get('QNTXIslandSentry', '')).startswith('https://'):
+            raise SystemExit(bundle + ' names no QNTXIslandSentry: the island would send its failures nowhere')
+        if b'SentrySDK' not in binary.read_bytes():
+            raise SystemExit(bundle + ' does not carry Sentry: the island would send its failures nowhere')
+        print(bundle, 'sends its failures to Sentry')
 
 
 def security(*args, **kwargs):
