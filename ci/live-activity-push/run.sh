@@ -12,8 +12,10 @@ set -euxo pipefail
 
 xcodegen generate
 xcodebuild build -project Probe.xcodeproj -scheme Probe -sdk iphonesimulator \
-  -destination "id=$UDID" -derivedDataPath dd CODE_SIGNING_ALLOWED=NO -quiet
+  -destination "id=$UDID" -derivedDataPath dd -quiet
 APP=dd/Build/Products/Debug-iphonesimulator/Probe.app
+# Signed for the Simulator with aps-environment, as the island is signed with it.
+codesign -d --entitlements - "$APP" 2>&1 | grep -F aps-environment
 
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl launch "$UDID" nl.sbvh.probe.app

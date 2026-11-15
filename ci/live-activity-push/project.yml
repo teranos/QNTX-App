@@ -11,7 +11,11 @@ targets:
       properties:
         NSSupportsLiveActivities: true
         UILaunchScreen: {}
-    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app, GENERATE_INFOPLIST_FILE: NO } }
+    entitlements:
+      path: App/Probe.entitlements
+      properties:
+        aps-environment: development
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app, GENERATE_INFOPLIST_FILE: NO, CODE_SIGN_IDENTITY: "-", CODE_SIGN_STYLE: Manual } }
     dependencies: [{ target: ProbeWidget, embed: true }]
   ProbeWidget:
     type: app-extension
@@ -23,4 +27,4 @@ targets:
       properties:
         CFBundleDisplayName: Probe
         NSExtension: { NSExtensionPointIdentifier: com.apple.widgetkit-extension }
-    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app.widget } }
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app.widget, CODE_SIGN_IDENTITY: "-", CODE_SIGN_STYLE: Manual } }
