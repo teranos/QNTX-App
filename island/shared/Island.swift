@@ -18,18 +18,23 @@ enum Island {
   }
 
   private static let turn = NSLock()
-  private static var started = false
   private static var made = 0
+  // Touched on the main thread only.
+  private static var started = false
 
-  // 「[Opus 5.5] Sentry, begun the first time anything is sent: the app and the widget are」
-  // 「[Opus 5.5] two processes, and either may be the first to fail.」
-  private static func start() {
-    turn.lock()
-    defer { turn.unlock() }
+  // Sentry is begun on the main thread as each process starts, before anything
+  // can fail there: the app's at launch (WaitsTokens.begin), the widget's when
+  // its bundle is made (IslandWidgets). Sentry begun on another thread starts
+  // later, on the main thread, and what is sent before then is lost.
+  static func start() {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async { start() }
+      return
+    }
     if started { return }
     started = true
-    // 「[Opus 5.5] A build that names no DSN is refused when it is made (ios-project.py),」
-    // 「[Opus 5.5] so one that runs names one.」
+    // A build that names no DSN is refused when it is made (ios-project.py),
+    // so one that runs names one.
     SentrySDK.start { options in
       options.dsn = dsn
       options.releaseName = "qntx-island@" + build
@@ -75,7 +80,6 @@ enum Island {
   }
 
   private static func send(_ error: SacredError) {
-    start()
     let event = Event(level: level(error.severity))
     event.message = SentryMessage(formatted: error.title)
     event.tags = ["surface": error.context.surface, "region": error.context.region ?? "", "build": build]
@@ -86,13 +90,21 @@ enum Island {
     ]
     whole["trace"] = error.trace
     event.context = ["sacred_error": whole]
-    SentrySDK.capture(event: event)
+    // Sent once Sentry is begun: where it is not yet, on the main thread,
+    // after it is.
+    if SentrySDK.isEnabled {
+      SentrySDK.capture(event: event)
+    } else {
+      DispatchQueue.main.async {
+        start()
+        SentrySDK.capture(event: event)
+      }
+    }
   }
 
   /// 「[Opus 5.5] Sends what is waiting before the process is let go of: a press runs in a」
   /// 「[Opus 5.5] process the system suspends as soon as the press returns.」
   static func flush() {
-    start()
     SentrySDK.flush(timeout: 2)
   }
 

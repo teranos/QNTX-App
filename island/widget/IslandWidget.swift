@@ -162,6 +162,11 @@ struct WaitsLiveActivity: Widget {
 
 @main
 struct IslandWidgets: WidgetBundle {
+  // Sentry begun as the widget's process makes its bundle, before anything there can fail.
+  init() {
+    Island.start()
+  }
+
   var body: some Widget {
     if #available(iOS 17.2, *) {
       WaitsLiveActivity()

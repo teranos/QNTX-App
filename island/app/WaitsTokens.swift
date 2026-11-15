@@ -47,6 +47,8 @@ final class WaitsTokens: NSObject {
     guard #available(iOS 17.2, *) else { return }
     guard !begun else { return }
     begun = true
+    // Begun on the main thread at launch, before anything of the island can fail.
+    Island.start()
     waitsIsSeen("begun activities=\(ActivityAuthorizationInfo().areActivitiesEnabled) starts=\(Activity<WaitsAttributes>.pushToStartToken != nil)")
 
     // Apple gives the token to start by to an app that is registered with its

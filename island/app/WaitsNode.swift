@@ -34,12 +34,15 @@ private func theNode() throws -> URL {
   return node
 }
 
-// 「[Opus 5.5] A session is kept for the node it is of, by its whole URL as the build names it.」
+// A session is kept for the node it is of, by its origin: scheme, host and
+// port, as it was kept before. theNode said both scheme and host are there.
 private func keychain(_ node: URL) -> [String: Any] {
-  [
+  var origin = (node.scheme ?? "") + "://" + (node.host ?? "")
+  if let port = node.port { origin += ":" + String(port) }
+  return [
     kSecClass as String: kSecClassGenericPassword,
     kSecAttrService as String: heldAs,
-    kSecAttrAccount as String: node.absoluteString,
+    kSecAttrAccount as String: origin,
   ]
 }
 
