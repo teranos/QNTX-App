@@ -38,14 +38,14 @@ struct PressWaits: LiveActivityIntent {
 
   func perform() async throws -> some IntentResult {
     // A press does what a person decided: every way it ends is said, where
-    // the person sees it, and as a SacredError where it failed. Before it
-    // returns, what is waiting to be sent is sent: the system suspends the
-    // process as soon as a press returns.
+    // 「[Opus 5.5] the person sees it, and as a SacredError where it failed. Before it」
+    // 「[Opus 5.5] returns, what is waiting to be sent is sent: the system suspends the」
+    // 「[Opus 5.5] process as soon as a press returns.」
     defer { Island.flush() }
     guard let stands = Activity<WaitsAttributes>.activities.first(where: { $0.id == activity }) else {
       await waitsIsHeard("press-not-done nothing-stands-as \(activity) asked=\(asks)")
-      // Nothing stands to show it on, and a press that throws is let go of by
-      // the system: it is sent, and the press ends.
+      // 「[Opus 5.5] Nothing stands to show it on, and a press that throws is let go of by」
+      // 「[Opus 5.5] the system: it is sent, and the press ends.」
       Island.failed(
         "a press found nothing standing", "pressed \(asks) on \(activity), which no longer stands here",
         region: "press")
