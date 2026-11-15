@@ -55,6 +55,10 @@ ISLAND_TARGET = """  IslandWidget:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        QNTXIslandSentry: {sentry}
+    dependencies:
+      - package: Sentry
+      - package: SacredError
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {id}
@@ -74,6 +78,18 @@ ISLAND_IN_THE_APP = [
     "      - path: ../../island/app",
     "      - path: ../../island/shared",
 ]
+
+# What the island's every failure is, and where it is sent (island/shared/Island.swift).
+# Pinned, as everything a build signs is: sacred-error by the commit that added
+# Swift and its CI, Sentry by a release.
+ISLAND_PACKAGES = """packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    exactVersion: 9.32.0
+  SacredError:
+    url: https://github.com/teranos/sacred-error
+    revision: 7afcdfd0c060669ad7032f07467f61761a7fac39
+"""
 
 # The first of the app's Info.plist properties in the template: where the node
 # is goes after it, for what the app asks of the node outside the page.
@@ -188,11 +204,18 @@ def main(path):
         lines[embed + 1:embed + 1] = [
             "      - target: IslandWidget",
             "        embed: true",
+            "      - package: Sentry",
+            "      - package: SacredError",
         ]
         before = lines.index(SOURCES_BEFORE)
         lines[before:before] = ISLAND_IN_THE_APP
+        # Where the island sends its failures (island/shared/Island.swift): a
+        # build that names none would drop every one, so it is not made.
+        sentry = os.environ.get("ISLAND_SENTRY_DSN", "")
+        if not sentry.startswith("https://"):
+            raise SystemExit("ISLAND_SENTRY_DSN names no Sentry DSN, and the island sends every failure there")
         info = lines.index(INFO_AFTER)
-        lines[info + 1:info + 1] = ["        QNTXNode: " + node]
+        lines[info + 1:info + 1] = ["        QNTXNode: " + node, "        QNTXIslandSentry: " + sentry]
         # The app compiles Swift of its own now, which the template never had.
         at = lines.index(ANCHOR)
         # Live Activities and presses are newer than the oldest iOS the app
@@ -202,7 +225,9 @@ def main(path):
             '      OTHER_LDFLAGS: "$(inherited) -weak_framework ActivityKit -weak_framework AppIntents -weak_framework WidgetKit"',
         ]
         # targets: is the template's last key, so a target appended is one of them.
-        lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island))
+        lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island, sentry=sentry))
+        # A key at the left margin after the last target is the project's own.
+        lines.append(ISLAND_PACKAGES)
         island_is_signed(island)
 
     reached_by_the_node(path, lines)

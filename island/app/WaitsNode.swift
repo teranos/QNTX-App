@@ -1,4 +1,5 @@
 import Foundation
+import SacredError
 import Security
 import UIKit
 import WebKit
@@ -14,11 +15,9 @@ import WebKit
 // there, and kept in the Keychain for when the system runs the app with no
 // page, as it does for a press on the island. Where the page is let keep the
 // node's cookies, those are presented too. No token is made for it.
-
-struct WaitsNodeRefused: LocalizedError {
-  let says: String
-  var errorDescription: String? { says }
-}
+//
+// Every failure here is a SacredError made by Island (island/shared/Island.swift),
+// which is what sends it: thrown up, or shown where it happened, never dropped.
 
 // Where the page holds its session (QNTX-Web ts/client/session.ts, KEY).
 private let heldAs = "qntx.session"
@@ -26,23 +25,21 @@ private let heldAs = "qntx.session"
 // Where the node is: Info.plist's QNTXNode, written when the app is built
 // (.github/scripts/ios-project.py), as the page's own API origin is.
 private func theNode() throws -> URL {
-  guard let said = Bundle.main.object(forInfoDictionaryKey: "QNTXNode") as? String, let node = URL(string: said),
-    node.scheme == "https", node.host != nil
-  else {
-    throw WaitsNodeRefused(says: "this build names no node")
+  let said = Bundle.main.object(forInfoDictionaryKey: "QNTXNode") as? String
+  guard let said = said, let node = URL(string: said), node.scheme == "https", node.host != nil else {
+    throw Island.failed(
+      "this build names no node", "Info.plist's QNTXNode is \(String(describing: said)), and an https URL is asked",
+      region: "node")
   }
   return node
 }
 
-// A session is kept for the node it is of, by its whole origin: scheme, host
-// and port. One kept for another node at the same host is not this node's.
+// A session is kept for the node it is of, by its whole URL as the build names it.
 private func keychain(_ node: URL) -> [String: Any] {
-  var origin = (node.scheme ?? "") + "://" + (node.host ?? "")
-  if let port = node.port { origin += ":" + String(port) }
-  return [
+  [
     kSecClass as String: kSecClassGenericPassword,
     kSecAttrService as String: heldAs,
-    kSecAttrAccount as String: origin,
+    kSecAttrAccount as String: node.absoluteString,
   ]
 }
 
@@ -51,20 +48,33 @@ private func kept(for node: URL) -> String? {
   asks[kSecReturnData as String] = true
   asks[kSecMatchLimit as String] = kSecMatchLimitOne
   var found: CFTypeRef?
-  guard SecItemCopyMatching(asks as CFDictionary, &found) == errSecSuccess, let raw = found as? Data else {
+  let status = SecItemCopyMatching(asks as CFDictionary, &found)
+  if status == errSecItemNotFound { return nil }
+  guard status == errSecSuccess, let raw = found as? Data else {
+    Island.failed("the kept session was not read", "the Keychain answered \(status)", region: "session")
     return nil
   }
-  return String(data: raw, encoding: .utf8)
+  guard let session = String(data: raw, encoding: .utf8) else {
+    Island.failed("the kept session is not text", "\(raw.count) bytes the Keychain held are not UTF-8", region: "session")
+    return nil
+  }
+  return session
 }
 
 private func keep(_ session: String?, for node: URL) {
-  SecItemDelete(keychain(node) as CFDictionary)
+  let gone = SecItemDelete(keychain(node) as CFDictionary)
+  if gone != errSecSuccess && gone != errSecItemNotFound {
+    Island.failed("the kept session was not let go of", "the Keychain answered \(gone)", region: "session")
+  }
   guard let session = session, !session.isEmpty else { return }
   var adds = keychain(node)
   adds[kSecValueData as String] = Data(session.utf8)
   // Read with the phone locked too: a press on the lock screen is answered there.
   adds[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-  SecItemAdd(adds as CFDictionary, nil)
+  let added = SecItemAdd(adds as CFDictionary, nil)
+  if added != errSecSuccess {
+    Island.failed("the session was not kept", "the Keychain answered \(added)", region: "session")
+  }
 }
 
 // The app's page, where there is one: the web view Tauri put in the window.
@@ -109,9 +119,24 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
       answered.resume(returning: said)
     }
     page.evaluateJavaScript("localStorage.getItem('\(heldAs)') || ''") { result, error in
-      answer(error == nil ? (result as? String ?? "") : nil)
+      if let error = error {
+        Island.failed("the page was not asked for its session", from: error, region: "session", severity: .warn)
+        answer(nil)
+        return
+      }
+      guard let held = result as? String else {
+        Island.failed(
+          "the page answered its session with no text", String(describing: result), region: "session", severity: .warn)
+        answer(nil)
+        return
+      }
+      answer(held)
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { answer(nil) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+      if once { return }
+      Island.failed("the page gave no answer", "asked for its session, it said nothing in 3 seconds", region: "session", severity: .warn)
+      answer(nil)
+    }
   }
   guard let session = said else {
     let held = kept(for: node)
@@ -132,34 +157,59 @@ private func theSession(at node: URL) async -> (session: String?, from: String) 
 // let go of. Where the node is not reached, what is kept stays kept.
 @MainActor
 private func restored(_ held: String, to page: WKWebView, at node: URL) async -> (session: String?, from: String) {
-  guard let at = URL(string: "/auth/user/arrival", relativeTo: node) else { return (held, "kept") }
+  guard let at = URL(string: "/auth/user/arrival", relativeTo: node) else {
+    Island.failed("the node's arrival is no URL", "/auth/user/arrival under \(node)", region: "session")
+    return (held, "kept")
+  }
   var asks = URLRequest(url: at)
   asks.timeoutInterval = 10
   asks.httpShouldHandleCookies = false
   asks.setValue("Bearer \(held)", forHTTPHeaderField: "Authorization")
-  guard let (_, answer) = try? await URLSession.shared.data(for: asks),
-    let status = (answer as? HTTPURLResponse)?.statusCode
-  else {
+  let answer: URLResponse
+  do {
+    (_, answer) = try await URLSession.shared.data(for: asks)
+  } catch {
+    Island.failed("the kept session was not asked of the node", from: error, region: "session", severity: .warn)
+    return (held, "kept-node-not-reached")
+  }
+  guard let status = (answer as? HTTPURLResponse)?.statusCode else {
+    Island.failed("the node's answer is no HTTP", String(describing: answer), region: "session")
     return (held, "kept-node-not-reached")
   }
   if status == 401 {
     keep(nil, for: node)
     return (nil, "page-holds-none-node-ended-kept")
   }
-  guard (200..<300).contains(status),
-    let quoted = try? JSONSerialization.data(withJSONObject: [heldAs, held]),
-    let both = String(data: quoted, encoding: .utf8)
-  else {
+  guard (200..<300).contains(status) else {
+    Island.failed("the node did not say whether the kept session stands", "it answered \(status)", region: "session")
     return (held, "kept-node-answered-\(status)")
   }
-  _ = try? await page.evaluateJavaScript("(function(s){localStorage.setItem(s[0], s[1]); location.reload();})(\(both))")
+  let both: String
+  do {
+    both = String(decoding: try JSONSerialization.data(withJSONObject: [heldAs, held]), as: UTF8.self)
+  } catch {
+    Island.failed("the session was not written for the page", from: error, region: "session")
+    return (held, "kept")
+  }
+  do {
+    try await page.evaluateJavaScript("(function(s){localStorage.setItem(s[0], s[1]); location.reload();})(\(both))")
+  } catch {
+    Island.failed("the session was not put back into the page", from: error, region: "session")
+    return (held, "kept")
+  }
   waitsIsSeen("restored the session to the page")
   return (held, "restored")
 }
 
 // A mark of who is in the app now, to tell one session from the next by. It is not the session.
 func waitsSessionMark() async -> String {
-  guard let node = try? theNode(), let session = await theSession(at: node).session else { return "" }
+  let node: URL
+  do {
+    node = try theNode()
+  } catch {
+    return ""
+  }
+  guard let session = await theSession(at: node).session else { return "" }
   var mark: UInt64 = 1469598103934665603
   for byte in session.utf8 {
     mark = (mark ^ UInt64(byte)) &* 1099511628211
@@ -194,82 +244,110 @@ private func theCookies(for asked: URL) async -> [HTTPCookie] {
 }
 
 // What this side is doing, said to the node so that it stands in the node's
-// log: nothing on a phone is seen from anywhere else. It asks a path the node
-// writes down whoever asks, and says itself in the place a client names
-// itself. It carries no session and is answered by nothing that matters.
+// log. It asks a path the node writes down whoever asks, and says itself in
+// the place a client names itself. It carries no session.
 func waitsIsSeen(_ what: String) {
   guard let says = seenAs(what) else { return }
-  URLSession.shared.dataTask(with: says).resume()
+  URLSession.shared.dataTask(with: says) { _, _, error in
+    if let error = error {
+      Island.failed("a step was not said to the node", from: error, region: "seen", severity: .warn)
+    }
+  }.resume()
 }
 
 // The same, said before it returns. A press runs in a process the system
 // suspends as soon as the press returns, and what was only begun then never
-// leaves the phone: a press says each step this way, so every press is in the
-// node's log, whatever became of it.
+// leaves the phone: a press says each step this way.
 func waitsIsHeard(_ what: String) async {
   guard let says = seenAs(what) else { return }
-  _ = try? await URLSession.shared.data(for: says)
+  do {
+    let (_, answer) = try await URLSession.shared.data(for: says)
+    if !(answer is HTTPURLResponse) {
+      Island.failed("a step said to the node had no HTTP answer", String(describing: answer), region: "seen", severity: .warn)
+    }
+  } catch {
+    Island.failed("a step was not said to the node", from: error, region: "seen", severity: .warn)
+  }
 }
 
 private func seenAs(_ what: String) -> URLRequest? {
-  guard let node = try? theNode(), let at = URL(string: "/api/phones", relativeTo: node) else { return nil }
-  let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+  let node: URL
+  do {
+    node = try theNode()
+  } catch {
+    return nil
+  }
+  guard let at = URL(string: "/api/phones", relativeTo: node) else {
+    Island.failed("the node's phones are no URL", "/api/phones under \(node)", region: "seen")
+    return nil
+  }
   let plain = String(what.unicodeScalars.filter { $0.isASCII && $0.value >= 32 }.prefix(160))
   var says = URLRequest(url: at)
   says.httpMethod = "GET"
   says.timeoutInterval = 10
   says.httpShouldHandleCookies = false
-  says.setValue("QNTX-waits/\(build) \(plain)", forHTTPHeaderField: "User-Agent")
+  says.setValue("QNTX-waits/\(Island.build) \(plain)", forHTTPHeaderField: "User-Agent")
   return says
 }
 
 // Asks the node at path, a path of its API, with what is sent there. Throws
-// what the node answered when it did not do it.
+// the SacredError of what the node answered when it did not do it.
 func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   // A path of the node's API and nothing else: what is asked never leaves the node.
   guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("//"), !path.contains("@") else {
-    throw WaitsNodeRefused(says: "\(path) is no path of the node's")
+    throw Island.failed("a press asked outside the node", "\(path) is no path of the node's", region: "node")
   }
   let node = try theNode()
   guard let at = URL(string: path, relativeTo: node), at.host == node.host else {
-    throw WaitsNodeRefused(says: "\(path) is no path of the node's")
+    throw Island.failed("a press asked outside the node", "\(path) is no path of the node's", region: "node")
   }
   let (session, from) = await theSession(at: node)
   let cookies = await theCookies(for: at)
   guard session != nil || !cookies.isEmpty else {
     waitsIsSeen("not-logged-in session=\(from) cookies=0 asked=\(path)")
-    throw WaitsNodeRefused(says: "the app is not logged in")
+    throw Island.failed(
+      "the app is not logged in", "asked \(path) with no session (\(from)) and no cookie", region: "session",
+      severity: .warn)
   }
   var asks = URLRequest(url: at)
   asks.httpMethod = "POST"
   asks.timeoutInterval = 20
   asks.httpShouldHandleCookies = false
   asks.setValue("application/json", forHTTPHeaderField: "Content-Type")
-  let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-  asks.setValue("QNTX-waits/\(build) session=\(from) cookies=\(cookies.count)", forHTTPHeaderField: "User-Agent")
+  asks.setValue("QNTX-waits/\(Island.build) session=\(from) cookies=\(cookies.count)", forHTTPHeaderField: "User-Agent")
   if let session = session {
     asks.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
   }
   for (name, value) in HTTPCookie.requestHeaderFields(with: cookies) {
     asks.setValue(value, forHTTPHeaderField: name)
   }
-  asks.httpBody = try JSONSerialization.data(withJSONObject: sent)
-  let (said, answer) = try await URLSession.shared.data(for: asks)
+  do {
+    asks.httpBody = try JSONSerialization.data(withJSONObject: sent)
+  } catch {
+    throw Island.failed("what a press sends is not JSON", from: error, region: "node")
+  }
+  let said: Data
+  let answer: URLResponse
+  do {
+    (said, answer) = try await URLSession.shared.data(for: asks)
+  } catch {
+    throw Island.failed("the node was not reached", from: error, region: "node")
+  }
   guard let status = (answer as? HTTPURLResponse)?.statusCode else {
-    throw WaitsNodeRefused(says: "the node gave no answer")
+    throw Island.failed("the node's answer is no HTTP", String(describing: answer), region: "node")
   }
   // A session the node no longer admits is not kept: logged out, the node
   // ended it (teranos/QNTX server/auth, handleLogout), and it is never
-  // presented from here again.
-  // Only the session this asking presented: one kept since, by another login,
-  // is not the one the node refused.
+  // presented from here again. Only the session this asking presented: one
+  // kept since, by another login, is not the one the node refused.
   if status == 401 {
     if kept(for: node) == session {
       keep(nil, for: node)
     }
   }
   guard (200..<300).contains(status) else {
-    let words = String(data: said.prefix(200), encoding: .utf8) ?? ""
-    throw WaitsNodeRefused(says: "the node answered \(status) \(words)")
+    throw Island.failed(
+      "the node did not do what was pressed", "\(path) answered \(status)", region: "node",
+      raw: String(decoding: said.prefix(2000), as: UTF8.self))
   }
 }

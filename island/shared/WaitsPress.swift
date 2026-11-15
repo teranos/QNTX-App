@@ -1,6 +1,7 @@
 import ActivityKit
 import AppIntents
 import Foundation
+import SacredError
 
 // A press on what waits, answered where it stands: on the island, the lock
 // screen, or the Mac's menu bar, without the app being opened. The system
@@ -37,10 +38,18 @@ struct PressWaits: LiveActivityIntent {
 
   func perform() async throws -> some IntentResult {
     // A press does what a person decided: every way it ends is said, where
-    // the person sees it and where the node writes it down.
+    // the person sees it, and as a SacredError where it failed. Before it
+    // returns, what is waiting to be sent is sent: the system suspends the
+    // process as soon as a press returns.
+    defer { Island.flush() }
     guard let stands = Activity<WaitsAttributes>.activities.first(where: { $0.id == activity }) else {
       await waitsIsHeard("press-not-done nothing-stands-as \(activity) asked=\(asks)")
-      throw WaitsPressNotDone(says: "what was pressed no longer stands")
+      // Nothing stands to show it on, and a press that throws is let go of by
+      // the system: it is sent, and the press ends.
+      Island.failed(
+        "a press found nothing standing", "pressed \(asks) on \(activity), which no longer stands here",
+        region: "press")
+      return .result()
     }
     let shown = stands.content.state
     guard shown.presses.indices.contains(press), shown.presses[press].asks == asks else {
@@ -83,9 +92,10 @@ struct PressWaits: LiveActivityIntent {
     } catch {
       // Not done: it says so. What the node said meanwhile stands; where it
       // said nothing, the presses are there to press again.
-      await waitsIsHeard("press-not-done \(pressed.does) of=\(stands.attributes.waits): \(error.localizedDescription)")
+      let failure = Island.failed("a press was not done", from: error, region: "press")
+      await waitsIsHeard("press-not-done \(pressed.does) of=\(stands.attributes.waits): \(failure.title)")
       var failed = stands.content.state == asking ? shown : stands.content.state
-      failed.says = "\(pressed.says) was not done: \(error.localizedDescription)"
+      failed.says = "\(pressed.says) was not done: \(failure.title)"
       await stands.update(ActivityContent(state: failed, staleDate: nil))
     }
     return .result()
@@ -108,11 +118,6 @@ enum PressesInHand {
     asking.remove(activity)
     turn.unlock()
   }
-}
-
-struct WaitsPressNotDone: LocalizedError {
-  let says: String
-  var errorDescription: String? { says }
 }
 
 extension WaitsPress {
