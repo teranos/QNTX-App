@@ -192,7 +192,7 @@ final class WaitsTokens: NSObject {
       try await waitsNodeIsAsked("/api/phones", sent)
       return true
     } catch {
-      // What the node said is the SacredError waitsNodeIsAsked made and sent.
+      // 「[Opus 5.5] What the node said is the SacredError waitsNodeIsAsked made and sent.」
       Island.failed("the node was not handed a token", from: error, region: "tokens")
       if turn.sync(execute: { refused }) == 0 {
         waitsIsSeen("not-handed \(held.waits.isEmpty ? "start" : "activity") token: \(error.localizedDescription)")
@@ -201,8 +201,8 @@ final class WaitsTokens: NSObject {
     }
   }
 
-  // Waits seconds, and answers whether to go on: a wait that is called off is
-  // over, and anything else that ends it is a failure, sent.
+  // 「[Opus 5.5] Waits seconds, and answers whether to go on: a wait that is called off is」
+  // 「[Opus 5.5] over, and anything else that ends it is a failure, sent.」
   private static func pause(_ seconds: UInt64) async -> Bool {
     do {
       try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
