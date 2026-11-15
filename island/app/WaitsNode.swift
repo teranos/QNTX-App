@@ -16,8 +16,8 @@ import WebKit
 // page, as it does for a press on the island. Where the page is let keep the
 // node's cookies, those are presented too. No token is made for it.
 //
-// Every failure here is a SacredError made by Island (island/shared/Island.swift),
-// which is what sends it: thrown up, or shown where it happened, never dropped.
+// 「[Opus 5.5] Every failure here is a SacredError made by Island (island/shared/Island.swift),」
+// 「[Opus 5.5] which is what sends it: thrown up, or shown where it happened, never dropped.」
 
 // Where the page holds its session (QNTX-Web ts/client/session.ts, KEY).
 private let heldAs = "qntx.session"
@@ -34,7 +34,7 @@ private func theNode() throws -> URL {
   return node
 }
 
-// A session is kept for the node it is of, by its whole URL as the build names it.
+// 「[Opus 5.5] A session is kept for the node it is of, by its whole URL as the build names it.」
 private func keychain(_ node: URL) -> [String: Any] {
   [
     kSecClass as String: kSecClassGenericPassword,
@@ -244,8 +244,8 @@ private func theCookies(for asked: URL) async -> [HTTPCookie] {
 }
 
 // What this side is doing, said to the node so that it stands in the node's
-// log. It asks a path the node writes down whoever asks, and says itself in
-// the place a client names itself. It carries no session.
+// 「[Opus 5.5] log. It asks a path the node writes down whoever asks, and says itself in」
+// 「[Opus 5.5] the place a client names itself. It carries no session.」
 func waitsIsSeen(_ what: String) {
   guard let says = seenAs(what) else { return }
   URLSession.shared.dataTask(with: says) { _, _, error in
@@ -257,7 +257,7 @@ func waitsIsSeen(_ what: String) {
 
 // The same, said before it returns. A press runs in a process the system
 // suspends as soon as the press returns, and what was only begun then never
-// leaves the phone: a press says each step this way.
+// 「[Opus 5.5] leaves the phone: a press says each step this way.」
 func waitsIsHeard(_ what: String) async {
   guard let says = seenAs(what) else { return }
   do {
@@ -291,7 +291,7 @@ private func seenAs(_ what: String) -> URLRequest? {
 }
 
 // Asks the node at path, a path of its API, with what is sent there. Throws
-// the SacredError of what the node answered when it did not do it.
+// 「[Opus 5.5] the SacredError of what the node answered when it did not do it.」
 func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   // A path of the node's API and nothing else: what is asked never leaves the node.
   guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("//"), !path.contains("@") else {
@@ -338,8 +338,8 @@ func waitsNodeIsAsked(_ path: String, _ sent: [String: Any]) async throws {
   }
   // A session the node no longer admits is not kept: logged out, the node
   // ended it (teranos/QNTX server/auth, handleLogout), and it is never
-  // presented from here again. Only the session this asking presented: one
-  // kept since, by another login, is not the one the node refused.
+  // 「[Opus 5.5] presented from here again. Only the session this asking presented: one」
+  // 「[Opus 5.5] kept since, by another login, is not the one the node refused.」
   if status == 401 {
     if kept(for: node) == session {
       keep(nil, for: node)
