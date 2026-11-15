@@ -79,9 +79,9 @@ ISLAND_IN_THE_APP = [
     "      - path: ../../island/shared",
 ]
 
-# What the island's every failure is, and where it is sent (island/shared/Island.swift).
-# Pinned, as everything a build signs is: sacred-error by the commit that added
-# Swift and its CI, Sentry by a release.
+# 「[Opus 5.5] What the island's every failure is, and where it is sent (island/shared/Island.swift).」
+# 「[Opus 5.5] Pinned, as everything a build signs is: sacred-error by the commit that added」
+# 「[Opus 5.5] Swift and its CI, Sentry by a release.」
 ISLAND_PACKAGES = """packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
@@ -209,8 +209,8 @@ def main(path):
         ]
         before = lines.index(SOURCES_BEFORE)
         lines[before:before] = ISLAND_IN_THE_APP
-        # Where the island sends its failures (island/shared/Island.swift): a
-        # build that names none would drop every one, so it is not made.
+        # 「[Opus 5.5] Where the island sends its failures (island/shared/Island.swift): a」
+        # 「[Opus 5.5] build that names none would drop every one, so it is not made.」
         sentry = os.environ.get("ISLAND_SENTRY_DSN", "")
         if not sentry.startswith("https://"):
             raise SystemExit("ISLAND_SENTRY_DSN names no Sentry DSN, and the island sends every failure there")
@@ -226,7 +226,7 @@ def main(path):
         ]
         # targets: is the template's last key, so a target appended is one of them.
         lines.append(ISLAND_TARGET.format(id=ISLAND_ID, team=TEAM, profile=island, sentry=sentry))
-        # A key at the left margin after the last target is the project's own.
+        # 「[Opus 5.5] A key at the left margin after the last target is the project's own.」
         lines.append(ISLAND_PACKAGES)
         island_is_signed(island)
 
