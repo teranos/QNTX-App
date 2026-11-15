@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import SacredError
 import UIKit
 
 // The tokens the node reaches Live Activities by, handed to it as Apple gives
@@ -46,6 +47,8 @@ final class WaitsTokens: NSObject {
     guard #available(iOS 17.2, *) else { return }
     guard !begun else { return }
     begun = true
+    // Begun on the main thread at launch, before anything of the island can fail.
+    Island.start()
     waitsIsSeen("begun activities=\(ActivityAuthorizationInfo().areActivitiesEnabled) starts=\(Activity<WaitsAttributes>.pushToStartToken != nil)")
 
     // Apple gives the token to start by to an app that is registered with its
@@ -61,7 +64,7 @@ final class WaitsTokens: NSObject {
     // 799526): it is read again after a moment, and again.
     Task {
       for wait in [3, 15, 60] as [UInt64] {
-        try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+        guard await pause(wait) else { return }
         let has = Activity<WaitsAttributes>.pushToStartToken != nil
         if !has { waitsIsSeen("after-\(wait)s no-token-from-apple") }
         await handAll()
@@ -170,8 +173,7 @@ final class WaitsTokens: NSObject {
       return min(UInt64(600), doubled)
     }
     let next = Task {
-      try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
-      guard !Task.isCancelled else { return }
+      guard await pause(wait) else { return }
       await handAll()
     }
     turn.sync { again = next }
@@ -192,11 +194,25 @@ final class WaitsTokens: NSObject {
       try await waitsNodeIsAsked("/api/phones", sent)
       return true
     } catch {
-      NSLog("[Waits] the node was not handed a token: %@", error.localizedDescription)
-      // Said once for each time it is refused in a row, not on every try after.
+      // 「[Opus 5.5] What the node said is the SacredError waitsNodeIsAsked made and sent.」
+      Island.failed("the node was not handed a token", from: error, region: "tokens")
       if turn.sync(execute: { refused }) == 0 {
         waitsIsSeen("not-handed \(held.waits.isEmpty ? "start" : "activity") token: \(error.localizedDescription)")
       }
+      return false
+    }
+  }
+
+  // 「[Opus 5.5] Waits seconds, and answers whether to go on: a wait that is called off is」
+  // 「[Opus 5.5] over, and anything else that ends it is a failure, sent.」
+  private static func pause(_ seconds: UInt64) async -> Bool {
+    do {
+      try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+      return true
+    } catch is CancellationError {
+      return false
+    } catch {
+      Island.failed("a wait ended early", from: error, region: "tokens")
       return false
     }
   }

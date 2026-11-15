@@ -202,6 +202,8 @@ in
             IOS_ISLAND_MOBILE_PROVISION = "\${{ secrets.IOS_ISLAND_MOBILE_PROVISION }}";
             # Where the node is, for what the app asks of it outside the page: a press on the island.
             BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
+            # 「[Opus 5.5] Where the island sends every failure: Sentry's qntx-island project.」
+            ISLAND_SENTRY_DSN = "\${{ vars.ISLAND_SENTRY_DSN }}";
             # The profile itself, to be asked whether it carries Push Notifications
             # before the app is signed as taking them.
             IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";

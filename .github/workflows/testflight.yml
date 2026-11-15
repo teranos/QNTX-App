@@ -85,6 +85,7 @@
             "IOS_ISLAND_MOBILE_PROVISION": "${{ secrets.IOS_ISLAND_MOBILE_PROVISION }}",
             "IOS_MOBILE_PROVISION": "${{ secrets.IOS_MOBILE_PROVISION }}",
             "ISLAND_PROVISIONING_PROFILE": "QNTX island",
+            "ISLAND_SENTRY_DSN": "${{ vars.ISLAND_SENTRY_DSN }}",
             "PROVISIONING_PROFILE": "${{ vars.PROVISIONING_PROFILE }}"
           },
           "name": "Sign against the profile, not an account",
