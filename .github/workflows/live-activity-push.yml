@@ -1,0 +1,45 @@
+{
+  "jobs": {
+    "probe": {
+      "name": "A push starts a Live Activity in the iPhone Simulator",
+      "runs-on": "macos-15",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "run": "brew install xcodegen"
+        },
+        {
+          "name": "Boot an iPhone",
+          "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\necho \"runtime: $RUNTIME\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+        },
+        {
+          "name": "Push, and see",
+          "run": "bash run.sh",
+          "working-directory": "ci/live-activity-push"
+        },
+        {
+          "if": "always()",
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "live-activity-push",
+            "path": "ci/live-activity-push/seen"
+          }
+        }
+      ],
+      "timeout-minutes": 30
+    }
+  },
+  "name": "Live Activity push in the Simulator",
+  "on": {
+    "pull_request": {
+      "paths": [
+        "ci/live-activity-push/**",
+        "ci/live-activity-push.nix",
+        ".github/workflows/live-activity-push.yml"
+      ]
+    },
+    "workflow_dispatch": null
+  }
+}

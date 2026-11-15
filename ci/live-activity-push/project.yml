@@ -1,0 +1,26 @@
+name: Probe
+options: { bundleIdPrefix: nl.sbvh.probe }
+targets:
+  Probe:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.2"
+    sources: [App, Shared]
+    info:
+      path: App/Info.plist
+      properties:
+        NSSupportsLiveActivities: true
+        UILaunchScreen: {}
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app, GENERATE_INFOPLIST_FILE: NO } }
+    dependencies: [{ target: ProbeWidget, embed: true }]
+  ProbeWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.2"
+    sources: [Widget, Shared]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Probe
+        NSExtension: { NSExtensionPointIdentifier: com.apple.widgetkit-extension }
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: nl.sbvh.probe.app.widget } }
