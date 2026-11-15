@@ -1,12 +1,12 @@
-# Whether the iPhone Simulator starts a Live Activity from a push.
-# .github/workflows/live-activity-push.yml is emitted from this and is never
-# edited by hand:
+# 「[Opus 5.5] Whether the iPhone Simulator starts a Live Activity from a push.」
+# 「[Opus 5.5] .github/workflows/live-activity-push.yml is emitted from this and is never」
+# 「[Opus 5.5] edited by hand:」
 #
-#   nix eval --json --file ci/live-activity-push.nix | jq . > .github/workflows/live-activity-push.yml
+#   「[Opus 5.5] nix eval --json --file ci/live-activity-push.nix | jq . > .github/workflows/live-activity-push.yml」
 #
-# Its answer decides how the island's tests in the Simulator start what they
-# test: by the push the node sends, or by the app. Nothing here reaches
-# TestFlight.
+# 「[Opus 5.5] Its answer decides how the island's tests in the Simulator start what they」
+# 「[Opus 5.5] test: by the push the node sends, or by the app. Nothing here reaches」
+# 「[Opus 5.5] TestFlight.」
 {
   name = "Live Activity push in the Simulator";
 
