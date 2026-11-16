@@ -153,7 +153,11 @@ struct WaitsLiveActivity: Widget {
       } compactLeading: {
         Text("꩜").font(.system(size: 14, design: .monospaced)).foregroundColor(accent)
       } compactTrailing: {
-        TimeLeft(due: context.state.due, size: 13).frame(maxWidth: 52)
+        // Hours, minutes and seconds in the compact island: drawn whole, and smaller where it would be cut.
+        TimeLeft(due: context.state.due, size: 13)
+          .lineLimit(1)
+          .minimumScaleFactor(0.75)
+          .frame(maxWidth: 64)
       } minimal: {
         Text("꩜").font(.system(size: 13, design: .monospaced)).foregroundColor(accent)
       }
