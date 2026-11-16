@@ -45,7 +45,7 @@
         },
         {
           "name": "Test the island",
-          "run": "xcodebuild -list\nxcodebuild test -scheme IslandTests-Package -destination \"id=$UDID\" -resultBundlePath island-tests.xcresult\n",
+          "run": "xcodebuild -list\n# The node on this runner, and the person logged in there, for the island to ask.\nTEST_RUNNER_QNTX_TEST_NODE=\"$NODE\" TEST_RUNNER_QNTX_TEST_SESSION=\"$SESSION\" TEST_RUNNER_CI=true \\\n  xcodebuild test -scheme IslandTests-Package -destination \"id=$UDID\" -resultBundlePath island-tests.xcresult\n",
           "working-directory": "ci/island-tests"
         },
         {
