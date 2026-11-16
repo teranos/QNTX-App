@@ -93,15 +93,37 @@ def logged_in(home):
     return session
 
 
+# What waits for an agent this node serves no turn for, as the node keeps a
+# collection beside its agents (teranos/QNTX server/collected.go): what a
+# press on the island asks of, cancel, delay and send, for real.
+WAITS_FOR = "did:key:z6MkBirchBirchBirchBirchBirchBirchBirchBirch"
+
+
+def collected(home):
+    at = os.path.join(home, ".qntx", "agents")
+    os.makedirs(at, exist_ok=True)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    held = {WAITS_FOR: {
+        "did": WAITS_FOR, "called": "Birch", "tenant": "Birch",
+        "waiting": [
+            {"from": "Alder", "says": "pull request one is open", "at": now, "id": "said-1"},
+            {"from": "Hazel", "says": "the pond is drained", "at": now, "id": "said-2"},
+        ],
+    }}
+    open(os.path.join(at, "collected.json"), "w").write(json.dumps(held))
+
+
 def main(checkout, home, port):
     port = int(port)
     log = os.path.join(home, "node.log")
     configure(checkout, home, port)
     stop(start(checkout, home, port, log))
     session = logged_in(home)
+    collected(home)
     node = start(checkout, home, port, log)
     print("NODE=http://127.0.0.1:%d" % port)
     print("SESSION=%s" % session)
+    print("WAITS_FOR=%s" % WAITS_FOR)
     print("PID=%d" % node.pid)
 
 
