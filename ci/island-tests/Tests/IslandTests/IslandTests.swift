@@ -194,13 +194,15 @@ final class APressReachesARealNode: XCTestCase {
     }
 
     func testDelaySendAndCancelDoOnTheNodeWhatTheySay() async throws {
-        let before = try XCTUnwrap(try await waiting(), "nothing waits on the node to press")
+        let listed = try await waiting()
+        let before = try XCTUnwrap(listed, "nothing waits on the node to press")
         XCTAssertEqual((before["waiting"] as? [Any])?.count, 2)
         let dueBefore = try XCTUnwrap(before["due"] as? String)
 
         // Delay: what waits is held one more wait past when it was due.
         try await waitsNodeIsAsked("/api/collected/later", ["to": waitsFor])
-        let delayed = try XCTUnwrap(try await waiting())
+        let afterDelay = try await waiting()
+        let delayed = try XCTUnwrap(afterDelay)
         XCTAssertGreaterThan(try XCTUnwrap(delayed["due"] as? String), dueBefore, "a delay did not move when it goes")
 
         // Send: the node serves no agent named Birch, so it is not delivered,
@@ -212,7 +214,8 @@ final class APressReachesARealNode: XCTestCase {
             XCTAssertEqual(error.title, "the node did not do what was pressed")
             XCTAssertTrue(error.raw?.contains("try 1") == true, String(describing: error.raw))
         }
-        let failed = try XCTUnwrap(try await waiting())
+        let afterSend = try await waiting()
+        let failed = try XCTUnwrap(afterSend)
         XCTAssertEqual(failed["tries"] as? Int, 1, "the node did not keep the failed send with what waits")
         XCTAssertFalse((failed["failure"] as? String ?? "").isEmpty)
 
