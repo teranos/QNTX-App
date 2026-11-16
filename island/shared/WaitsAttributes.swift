@@ -2,8 +2,6 @@ import ActivityKit
 import Foundation
 
 // "THE BATCH IS A LIVE ACTIVITY"
-// "AND SO IS THE APPROCAL"
-// "ITS KIND OF THE SAME THING"
 //
 // What waits on a person, as a Live Activity: one shape for a batch of what
 // agents said to an agent, an approval, and whatever waits on a person next.
@@ -57,7 +55,6 @@ struct WaitsPress: Codable, Hashable {
 
 // "CANCEL SHOULD BE ONE THING"
 // "APPROVE SHOULD BE ONE THING"
-// "THEY ARE ESSENTIALLY THE SAME GODDAMN THING"
 //
 // The mark each press is drawn as, among the system's own (SF Symbols): the
 // one place a press is given its mark. A press is one of three. Approve is
