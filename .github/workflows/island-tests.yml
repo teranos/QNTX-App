@@ -8,6 +8,38 @@
           "uses": "actions/checkout@v5"
         },
         {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "targets": "wasm32-unknown-unknown"
+          }
+        },
+        {
+          "uses": "actions/setup-go@v5",
+          "with": {
+            "go-version-file": "qntx/go.mod"
+          }
+        },
+        {
+          "name": "Build a node",
+          "run": "cargo build --release --target wasm32-unknown-unknown --package ats-wasm\ncp target/wasm32-unknown-unknown/release/ats_wasm.wasm ats/wasm/ats.wasm\ncargo build --release --package ats-sqlite --features ffi --lib\nrm -f target/release/libats_sqlite.dylib target/release/deps/libats_sqlite.dylib\nmkdir -p bin\ngo build -tags rustsqlite,qntxwasm -o bin/qntx ./cmd/qntx\n",
+          "working-directory": "qntx"
+        },
+        {
+          "name": "Start it, with a person logged in",
+          "run": "mkdir -p \"$RUNNER_TEMP/node\"\npython3 .github/scripts/ci-node.py \"$PWD/qntx\" \"$RUNNER_TEMP/node\" 18770 > node.env\ngrep -e '^NODE=' -e '^PID=' node.env\ncat node.env >> \"$GITHUB_ENV\"\n"
+        },
+        {
+          "name": "The node takes a phone's token from the person",
+          "run": "answer=$(curl -s -w ' %{http_code}' -X POST \"$NODE/api/phones\" -H \"Authorization: Bearer $SESSION\" -H 'Content-Type: application/json' -d '{\"token\":\"aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11\",\"platform\":\"ios\"}')\necho \"$answer\"\ntest \"${answer##* }\" = 200\n"
+        },
+        {
           "name": "Boot an iPhone",
           "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\necho \"runtime: $RUNTIME\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
         },
@@ -23,9 +55,17 @@
             "name": "island-tests",
             "path": "ci/island-tests/island-tests.xcresult"
           }
+        },
+        {
+          "if": "always()",
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "node-log",
+            "path": "${{ runner.temp }}/node/node.log"
+          }
         }
       ],
-      "timeout-minutes": 45
+      "timeout-minutes": 90
     }
   },
   "name": "Island tests",
@@ -35,7 +75,8 @@
         "island/**",
         "ci/island-tests/**",
         "ci/island-tests.nix",
-        ".github/workflows/island-tests.yml"
+        ".github/workflows/island-tests.yml",
+        ".github/scripts/ci-node.py"
       ]
     },
     "push": {
