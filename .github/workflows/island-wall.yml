@@ -1,0 +1,50 @@
+{
+  "jobs": {
+    "wall": {
+      "name": "The island lets no failure go",
+      "runs-on": "macos-15",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Build the wall",
+          "run": "swift build -c release",
+          "working-directory": "ci/island-wall"
+        },
+        {
+          "name": "The wall refuses every way it is to refuse",
+          "run": "set +e\n.build/release/island-wall refused > refused.txt\nstatus=$?\nset -e\ncat refused.txt\ntest \"$status\" -eq 1\ntail -1 refused.txt | grep -q -F \"1 files read, 11 refused\"\n",
+          "working-directory": "ci/island-wall"
+        },
+        {
+          "name": "Read the island's Swift",
+          "run": ".build/release/island-wall ../../island",
+          "working-directory": "ci/island-wall"
+        }
+      ],
+      "timeout-minutes": 30
+    }
+  },
+  "name": "Island wall",
+  "on": {
+    "pull_request": {
+      "paths": [
+        "island/**",
+        "ci/island-wall/**",
+        "ci/island-wall.nix",
+        ".github/workflows/island-wall.yml"
+      ]
+    },
+    "push": {
+      "branches": [
+        "main"
+      ],
+      "paths": [
+        "island/**",
+        "ci/island-wall/**"
+      ]
+    },
+    "workflow_dispatch": null
+  }
+}
