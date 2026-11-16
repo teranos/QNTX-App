@@ -22,9 +22,20 @@ import WebKit
 // Where the page holds its session (QNTX-Web ts/client/session.ts, KEY).
 private let heldAs = "qntx.session"
 
+// A node and a session the island's tests give it, in place of what a build
+// names and a page holds (ci/island-tests, against a node on the runner). A
+// build of the app never sets either: what it asks is Info.plist's node, in
+// the session its page logged in with.
+struct WaitsTestedAgainst {
+  let node: URL
+  let session: String
+}
+var waitsTestedAgainst: WaitsTestedAgainst?
+
 // Where the node is: Info.plist's QNTXNode, written when the app is built
 // (.github/scripts/ios-project.py), as the page's own API origin is.
 private func theNode() throws -> URL {
+  if let tested = waitsTestedAgainst { return tested.node }
   let said = Bundle.main.object(forInfoDictionaryKey: "QNTXNode") as? String
   guard let said = said, let node = URL(string: said), node.scheme == "https", node.host != nil else {
     throw Island.failed(
@@ -104,6 +115,7 @@ private func thePage() -> WKWebView? {
 // kept. With no page, what was kept when there last was one.
 @MainActor
 private func theSession(at node: URL) async -> (session: String?, from: String) {
+  if let tested = waitsTestedAgainst { return (tested.session, "tested") }
   guard let page = thePage() else {
     let held = kept(for: node)
     return (held, held == nil ? "no-page-none-kept" : "kept")

@@ -41,9 +41,10 @@ def configure(checkout, home, port):
 
     set_line('path = "qntx.db"', 'path = "%s"' % os.path.join(home, ".qntx", "qntx.db"))
     set_line("port = 8770", "port = %d" % port)
-    at = set_line("enabled = false", "enabled = true", lines.index("[auth]"))
-    # The node runs on nothing it was not told, and the example does not say it.
-    lines.insert(at + 1, "session_expiry_hours = 24")
+    auth = lines.index("[auth]")
+    set_line("enabled = false", "enabled = true", auth)
+    # "Said whenever enabled is true": the example's own line, said.
+    set_line("# session_expiry_hours = 168", "session_expiry_hours = 168", auth)
     set_line('# root_identities = ["%s"]' % ROOT, 'root_identities = ["%s"]' % ROOT)
     os.makedirs(os.path.join(home, ".qntx"), exist_ok=True)
     open(os.path.join(home, ".qntx", "am.toml"), "w").write("\n".join(lines))

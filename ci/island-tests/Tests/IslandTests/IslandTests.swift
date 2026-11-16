@@ -104,3 +104,57 @@ final class APressIsDrawnAndHeld: XCTestCase {
         PressesInHand.give("activity-1")
     }
 }
+
+// The island against a QNTX node on the runner (.github/scripts/ci-node.py),
+// in the session of a person logged in there: what it asks is what a phone
+// asks, and the node does it or says why not.
+final class TheIslandAgainstARealNode: XCTestCase {
+    private var node: WaitsTestedAgainst!
+
+    override func setUpWithError() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let at = env["QNTX_TEST_NODE"], let url = URL(string: at), let session = env["QNTX_TEST_SESSION"] else {
+            // On CI a node is always there: a run that found none is no run of these.
+            if env["CI"] != nil { XCTFail("no node to test the island against: QNTX_TEST_NODE and QNTX_TEST_SESSION are not set") }
+            throw XCTSkip("no node to test against")
+        }
+        node = WaitsTestedAgainst(node: url, session: session)
+        waitsTestedAgainst = node
+    }
+
+    override func tearDown() {
+        waitsTestedAgainst = nil
+    }
+
+    // The phone's token, handed over as the island hands it, is taken.
+    func testTheNodeTakesThePhonesToken() async throws {
+        try await waitsNodeIsAsked("/api/phones", ["token": String(repeating: "cc33", count: 16), "platform": "ios"])
+    }
+
+    // What the node refuses comes back as the island's failure, with the node's words.
+    func testWhatTheNodeRefusesIsTheIslandsFailure() async {
+        waitsTestedAgainst = WaitsTestedAgainst(node: node.node, session: String(repeating: "0", count: 64))
+        do {
+            try await waitsNodeIsAsked("/api/phones", ["token": String(repeating: "cc33", count: 16), "platform": "ios"])
+            XCTFail("the node took a token from a session it never made")
+        } catch let error as SacredError {
+            XCTAssertEqual(error.title, "the node did not do what was pressed")
+            XCTAssertTrue(error.why.contains("401"), error.why)
+        } catch {
+            XCTFail("it failed with what is no SacredError: \(error)")
+        }
+    }
+
+    // A token that is no token is refused by the node, and said.
+    func testTheNodeSaysWhyItRefusedAToken() async {
+        do {
+            try await waitsNodeIsAsked("/api/phones", ["token": "not-hex", "platform": "ios"])
+            XCTFail("the node took what is no token")
+        } catch let error as SacredError {
+            XCTAssertTrue(error.why.contains("400"), error.why)
+            XCTAssertTrue(error.raw?.contains("token") == true, String(describing: error.raw))
+        } catch {
+            XCTFail("it failed with what is no SacredError: \(error)")
+        }
+    }
+}
