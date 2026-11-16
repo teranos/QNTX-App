@@ -1,0 +1,52 @@
+{
+  "jobs": {
+    "tests": {
+      "name": "The island, tested in the iPhone Simulator",
+      "runs-on": "macos-15",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Boot an iPhone",
+          "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\necho \"runtime: $RUNTIME\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+        },
+        {
+          "name": "Test the island",
+          "run": "xcodebuild -list\nxcodebuild test -scheme IslandTests-Package -destination \"id=$UDID\" -resultBundlePath island-tests.xcresult\n",
+          "working-directory": "ci/island-tests"
+        },
+        {
+          "if": "always()",
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "island-tests",
+            "path": "ci/island-tests/island-tests.xcresult"
+          }
+        }
+      ],
+      "timeout-minutes": 45
+    }
+  },
+  "name": "Island tests",
+  "on": {
+    "pull_request": {
+      "paths": [
+        "island/**",
+        "ci/island-tests/**",
+        "ci/island-tests.nix",
+        ".github/workflows/island-tests.yml"
+      ]
+    },
+    "push": {
+      "branches": [
+        "main"
+      ],
+      "paths": [
+        "island/**",
+        "ci/island-tests/**"
+      ]
+    },
+    "workflow_dispatch": null
+  }
+}
