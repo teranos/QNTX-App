@@ -61,7 +61,8 @@ private struct TimeLeft: View {
   var body: some View {
     let until = Date(timeIntervalSince1970: due)
     if due > 0, until > Date() {
-      Text(timerInterval: Date()...until, countsDown: true, showsHours: false)
+      // In hours, minutes and seconds: a wait is hours long, and 359:34 is no time anyone reads.
+      Text(timerInterval: Date()...until, countsDown: true, showsHours: true)
         .font(.system(size: size, weight: .semibold, design: .monospaced))
         .monospacedDigit()
         .foregroundColor(accent)
