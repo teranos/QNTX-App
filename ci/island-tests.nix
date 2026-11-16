@@ -12,7 +12,7 @@
   name = "Island tests";
 
   on = {
-    pull_request.paths = [ "island/**" "ci/island-tests/**" "ci/island-tests.nix" ".github/workflows/island-tests.yml" ];
+    pull_request.paths = [ "island/**" "ci/island-tests/**" "ci/island-tests.nix" ".github/workflows/island-tests.yml" ".github/scripts/ci-node.py" ];
     push = {
       branches = [ "main" ];
       paths = [ "island/**" "ci/island-tests/**" ];
@@ -23,9 +23,57 @@
   jobs.tests = {
     name = "The island, tested in the iPhone Simulator";
     runs-on = "macos-15";
-    timeout-minutes = 45;
+    timeout-minutes = 90;
     steps = [
       { uses = "actions/checkout@v5"; }
+      # A QNTX node beside the Simulator, built from QNTX main, to test the
+      # island against what it asks for real (.github/scripts/ci-node.py).
+      {
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/QNTX";
+          path = "qntx";
+        };
+      }
+      {
+        uses = "dtolnay/rust-toolchain@stable";
+        "with".targets = "wasm32-unknown-unknown";
+      }
+      {
+        uses = "actions/setup-go@v5";
+        "with".go-version-file = "qntx/go.mod";
+      }
+      {
+        name = "Build a node";
+        working-directory = "qntx";
+        run = ''
+          cargo build --release --target wasm32-unknown-unknown --package ats-wasm
+          cp target/wasm32-unknown-unknown/release/ats_wasm.wasm ats/wasm/ats.wasm
+          cargo build --release --package ats-sqlite --features ffi --lib
+          rm -f target/release/libats_sqlite.dylib target/release/deps/libats_sqlite.dylib
+          mkdir -p bin
+          go build -tags rustsqlite,qntxwasm -o bin/qntx ./cmd/qntx
+        '';
+      }
+      {
+        name = "Start it, with a person logged in";
+        run = ''
+          mkdir -p "$RUNNER_TEMP/node"
+          python3 .github/scripts/ci-node.py "$PWD/qntx" "$RUNNER_TEMP/node" 18770 > node.env
+          grep -e '^NODE=' -e '^PID=' node.env
+          cat node.env >> "$GITHUB_ENV"
+        '';
+      }
+      {
+        # What the island hands over first, as the island hands it: the token
+        # its phone starts Live Activities by, in the person's own session.
+        name = "The node takes a phone's token from the person";
+        run = ''
+          answer=$(curl -s -w ' %{http_code}' -X POST "$NODE/api/phones" -H "Authorization: Bearer $SESSION" -H 'Content-Type: application/json' -d '{"token":"aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11aa11","platform":"ios"}')
+          echo "$answer"
+          test "''${answer##* }" = 200
+        '';
+      }
       {
         name = "Boot an iPhone";
         run = ''
@@ -51,6 +99,14 @@
         "with" = {
           name = "island-tests";
           path = "ci/island-tests/island-tests.xcresult";
+        };
+      }
+      {
+        "if" = "always()";
+        uses = "actions/upload-artifact@v4";
+        "with" = {
+          name = "node-log";
+          path = "\${{ runner.temp }}/node/node.log";
         };
       }
     ];
