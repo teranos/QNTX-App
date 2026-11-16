@@ -91,7 +91,7 @@
         run = ''
           xcodebuild -list
           # The node on this runner, and the person logged in there, for the island to ask.
-          TEST_RUNNER_QNTX_TEST_NODE="$NODE" TEST_RUNNER_QNTX_TEST_SESSION="$SESSION" TEST_RUNNER_CI=true \
+          TEST_RUNNER_QNTX_TEST_NODE="$NODE" TEST_RUNNER_QNTX_TEST_SESSION="$SESSION" TEST_RUNNER_QNTX_TEST_WAITS_FOR="$WAITS_FOR" TEST_RUNNER_CI=true \
             xcodebuild test -scheme IslandTests-Package -destination "id=$UDID" -resultBundlePath island-tests.xcresult
         '';
       }
