@@ -61,7 +61,8 @@ private struct TimeLeft: View {
   var body: some View {
     let until = Date(timeIntervalSince1970: due)
     if due > 0, until > Date() {
-      Text(timerInterval: Date()...until, countsDown: true, showsHours: false)
+      // In hours, minutes and seconds: a wait is hours long, and 359:34 is no time anyone reads.
+      Text(timerInterval: Date()...until, countsDown: true, showsHours: true)
         .font(.system(size: size, weight: .semibold, design: .monospaced))
         .monospacedDigit()
         .foregroundColor(accent)
@@ -152,7 +153,11 @@ struct WaitsLiveActivity: Widget {
       } compactLeading: {
         Text("꩜").font(.system(size: 14, design: .monospaced)).foregroundColor(accent)
       } compactTrailing: {
-        TimeLeft(due: context.state.due, size: 13).frame(maxWidth: 52)
+        // Hours, minutes and seconds in the compact island: drawn whole, and smaller where it would be cut.
+        TimeLeft(due: context.state.due, size: 13)
+          .lineLimit(1)
+          .minimumScaleFactor(0.75)
+          .frame(maxWidth: 64)
       } minimal: {
         Text("꩜").font(.system(size: 13, design: .monospaced)).foregroundColor(accent)
       }

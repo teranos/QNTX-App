@@ -1,0 +1,5 @@
+dd/
+*.xcodeproj/
+seen/
+App/Info.plist
+Widget/
