@@ -148,7 +148,7 @@ in
             working-directory = "qntx-web";
             env = {
               BACKEND_URL = backend;
-              SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+            SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
             };
             run = ''
               bun install --frozen-lockfile
