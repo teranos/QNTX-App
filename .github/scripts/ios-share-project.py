@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Add the screenshot extension to the generated XcodeGen project.
 
-Run after ios-project.py, before xcodegen. Requires PyYAML 6.0.3.
+Run after ios-common's apple/ios-project.py, before xcodegen. Requires PyYAML 6.0.3.
 Unsigned mode is for simulator/compile validation, never distribution.
 """
 import argparse

@@ -1,0 +1,19 @@
+{
+  "profile": "QNTX",
+  "ids": {
+    "": [
+      "PUSH_NOTIFICATIONS"
+    ],
+    ".island": []
+  },
+  "island": {
+    "profile": "QNTX island",
+    "display": "QNTX",
+    "session": "qntx.session",
+    "agent": "QNTX-waits",
+    "release": "qntx-island",
+    "mark": "꩜",
+    "name": "qntx",
+    "accent": "7dba8a"
+  }
+}

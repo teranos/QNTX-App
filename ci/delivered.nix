@@ -7,6 +7,7 @@
 let
   # The bundle identifier is tauri.conf.json's, read rather than restated.
   inherit (builtins.fromJSON (builtins.readFile ../tauri.conf.json)) identifier;
+  tag = (builtins.fromTOML (builtins.readFile ../Cargo.toml)).dependencies.sheet.tag;
 in
 {
   name = "delivered";
@@ -27,6 +28,16 @@ in
 
       { run = "pip install --quiet 'pyjwt[crypto]' requests"; }
 
+      # delivered.py is teranos/ios-common's, at the tag Cargo.toml takes the sheet from.
+      {
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/ios-common";
+          ref = tag;
+          path = "ios-common";
+        };
+      }
+
       {
         name = "What App Store Connect holds for ${identifier}";
         env = {
@@ -34,7 +45,7 @@ in
           APPLE_API_ISSUER = "\${{ secrets.APPLE_API_ISSUER }}";
           APPLE_API_KEY_CONTENT = "\${{ secrets.APPLE_API_KEY_CONTENT }}";
         };
-        run = "python3 .github/scripts/delivered.py list";
+        run = "python3 ios-common/apple/delivered.py list";
       }
     ];
   };

@@ -10,6 +10,14 @@
         {
           "uses": "actions/checkout@v5",
           "with": {
+            "path": "ios-common",
+            "ref": "v0.3.0",
+            "repository": "teranos/ios-common"
+          }
+        },
+        {
+          "uses": "actions/checkout@v5",
+          "with": {
             "path": "qntx",
             "repository": "teranos/QNTX"
           }
@@ -72,7 +80,7 @@
   "on": {
     "pull_request": {
       "paths": [
-        "island/**",
+        "Cargo.toml",
         "ci/island-tests/**",
         "ci/island-tests.nix",
         ".github/workflows/island-tests.yml",
@@ -84,7 +92,7 @@
         "main"
       ],
       "paths": [
-        "island/**",
+        "Cargo.toml",
         "ci/island-tests/**"
       ]
     },

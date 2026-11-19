@@ -8,11 +8,17 @@ let
   # The API origin baked into the bundle when a push builds, and the default a
   # dispatch offers.
   backendUrl = "https://api.q.sbvh.nl";
-  # The island's provisioning profile, by the name Apple holds it under.
-  islandProfile = (import ./island.nix).profile;
-  # What reaches a phone is asked for: main, or a build somebody dispatched.
-  # "WHY DID I SEE LIKE 10 TESTFLIGHT BUILDS WHEN I WAS WALKING"
-  reachesAPhone = "github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'";
+  backend = "\${{ inputs.backend_url || '${backendUrl}' }}";
+  apple = builtins.fromJSON (builtins.readFile ../apple.json);
+  # "the magic island"
+  #
+  # A press on it asks the node the page is built against.
+  island = {
+    node = backend;
+    # 「[Opus 5.5] Where the island sends every failure: Sentry's qntx-island project.」
+    sentry = "\${{ vars.ISLAND_SENTRY_DSN }}";
+  };
+  tag = (builtins.fromTOML (builtins.readFile ../Cargo.toml)).dependencies.sheet.tag;
 in
 {
   name = "testflight";
@@ -39,7 +45,9 @@ in
         type = "string";
         default = "";
       };
-      # "and web version tag should trigger mobile build": the tag of QNTX-Web the page is built from.
+      # "and web version tag should trigger mobile build"
+      #
+      # The tag of QNTX-Web the page is built from.
       web_ref = {
         description = "the QNTX-Web ref the page is built from: a tag, or main";
         type = "string";
@@ -67,268 +75,127 @@ in
       ];
     };
 
-    build = {
-      needs = "main";
-      runs-on = "macos-latest";
-      steps = [
-        { uses = "actions/checkout@v5"; }
-
-        # The shell carries no crates and no frontend. The crates come from QNTX
-        # main, at the commit the job above saw. Full history: what main is gets
-        # described against the tags below it.
-        {
-          uses = "actions/checkout@v5";
-          "with" = {
-            repository = "teranos/QNTX";
-            ref = "\${{ needs.main.outputs.sha }}";
-            path = "qntx";
-            fetch-depth = 0;
-            fetch-tags = true;
-          };
-        }
-
-        # The page comes from QNTX-Web main:
-        # "web needs to leave the repo"
-        # Its bun install fetches the browser wasm from QNTX's release.
-        {
-          uses = "actions/checkout@v5";
-          "with" = {
-            repository = "teranos/QNTX-Web";
-            ref = "\${{ inputs.web_ref || 'main' }}";
-            path = "qntx-web";
-          };
-        }
-
-        # Apple orders uploads by version, then by build within it. The version
-        # is QNTX's newest release; the build is the run, which only rises. What
-        # was actually built is the describe, and that is what an event names.
-        {
-          name = "What main is";
-          id = "qntx";
-          working-directory = "qntx";
-          run = ''
-            built=$(git describe --tags --match 'v*')
-            version=$(git tag -l 'v*' | sort -V | tail -1)
-            test -n "$built" && test -n "$version"
-            echo "built=$built" >> "$GITHUB_OUTPUT"
-            echo "version=''${version#v}" >> "$GITHUB_OUTPUT"
-            echo "QNTX_TAG=$built" >> "$GITHUB_ENV"
-            echo "building $built as $version"
-          '';
-        }
-
-        {
-          uses = "dtolnay/rust-toolchain@stable";
-          id = "rust";
-          "with" = {
-            targets = "aarch64-apple-ios";
-            components = "clippy";
-          };
-        }
-
-        {
-          uses = "oven-sh/setup-bun@v2";
-          "with".bun-version = "1.3.9";
-        }
-
-        # What was already compiled is reused: clippy and the IPA both compile
-        # tauri, sentry and the two QNTX path crates into target/. qntx-proto and
-        # qntx-grpc are path dependencies, so their sources are part of the key.
-        {
-          name = "The shell compiled last time";
-          uses = "actions/cache@v4";
-          "with" = {
-            path = "target";
-            key = "shell-\${{ steps.rust.outputs.cachekey }}-\${{ hashFiles('Cargo.lock', 'qntx/crates/**') }}";
-            restore-keys = ''
-              shell-''${{ steps.rust.outputs.cachekey }}-
+    # "but, don't you want something like a template for both App and laye to follow?"
+    #
+    # The iOS job is teranos/ios-common's (ci/ios.nix), at the tag Cargo.toml
+    # takes the sheet from. What is QNTX's own is passed to it here.
+    build =
+      import "${builtins.fetchGit {
+        url = "https://github.com/teranos/ios-common";
+        ref = "refs/tags/${tag}";
+      }}/ci/ios.nix" {
+        inherit tag island;
+        inherit (apple) profile;
+        # What was already compiled is reused: qntx-proto and qntx-grpc are path
+        # dependencies, so their sources are part of the key.
+        cache = {
+          path = [ "target" ];
+          key = [
+            "Cargo.lock"
+            "qntx/crates/**"
+          ];
+        };
+        prepare = [
+          # The shell carries no crates and no frontend. The crates come from QNTX
+          # main, at the commit the job above saw. Full history: what main is gets
+          # described against the tags below it.
+          {
+            uses = "actions/checkout@v5";
+            "with" = {
+              repository = "teranos/QNTX";
+              ref = "\${{ needs.main.outputs.sha }}";
+              path = "qntx";
+              fetch-depth = 0;
+              fetch-tags = true;
+            };
+          }
+          # The page comes from QNTX-Web: its bun install fetches the browser
+          # wasm from QNTX's release.
+          {
+            uses = "actions/checkout@v5";
+            "with" = {
+              repository = "teranos/QNTX-Web";
+              ref = "\${{ inputs.web_ref || 'main' }}";
+              path = "qntx-web";
+            };
+          }
+          # Apple orders uploads by version, then by build within it. The version
+          # is QNTX's newest release; the build is the run, which only rises. What
+          # was actually built is the describe, and that is what an event names.
+          {
+            name = "What main is";
+            id = "qntx";
+            working-directory = "qntx";
+            run = ''
+              built=$(git describe --tags --match 'v*')
+              version=$(git tag -l 'v*' | sort -V | tail -1)
+              test -n "$built" && test -n "$version"
+              echo "built=$built" >> "$GITHUB_OUTPUT"
+              echo "version=''${version#v}" >> "$GITHUB_OUTPUT"
+              echo "QNTX_TAG=$built" >> "$GITHUB_ENV"
+              echo "building $built as $version"
             '';
-          };
-        }
-
-        # QNTX-Web's build reads BACKEND_URL and SENTRY_DSN and writes dist/. The
-        # page leaves to the same project the shell does (src/lib.rs): a phone has
-        # no console; a DSN only writes, so it sits here as a literal.
-        {
-          name = "Build the bundle the app carries";
-          working-directory = "qntx-web";
-          env = {
-            BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
-            SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
-          };
-          run = ''
-            bun install --frozen-lockfile
-            bun run build
-          '';
-        }
-
-        # The wall in Cargo.toml is a list of denials, and this is what asks it.
-        # After the bundle: generate_context! refuses a frontendDist that is not there.
-        {
-          name = "The lib answers for every error";
-          run = "cargo clippy --lib --target aarch64-apple-ios";
-        }
-
-        # The release binary, not a six-minute compile of the CLI on every run.
-        {
-          name = "Fetch tauri-cli 2.11.4";
-          run = ''
-            curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip
-            mkdir -p "$HOME/.cargo/bin"
-            unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
-            rm cargo-tauri.zip
-            cargo tauri --version
-          '';
-        }
-
-        {
-          name = "The app is versioned as QNTX's newest release";
-          run = ''
-            python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "''${{ steps.qntx.outputs.version }}"
-          '';
-        }
-
-        { run = "cargo tauri ios init"; }
-
-        {
-          name = "Sign against the profile, not an account";
-          env = {
-            APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
-            PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
-            # "the magic island": its widget is its own bundle, signed by its
-            # own profile, by name here and itself in the secret
-            # (.github/workflows/island-apple.yml asks Apple for it).
-            ISLAND_PROVISIONING_PROFILE = islandProfile;
-            IOS_ISLAND_MOBILE_PROVISION = "\${{ secrets.IOS_ISLAND_MOBILE_PROVISION }}";
-            # Where the node is, for what the app asks of it outside the page: a press on the island.
-            BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
-            # 「[Opus 5.5] Where the island sends every failure: Sentry's qntx-island project.」
-            ISLAND_SENTRY_DSN = "\${{ vars.ISLAND_SENTRY_DSN }}";
-            # The profile itself, to be asked whether it carries Push Notifications
-            # before the app is signed as taking them.
-            IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";
-          };
-          run = ''
-            python3 .github/scripts/ios-project.py gen/apple/project.yml
-          '';
-        }
-
-        {
-          name = "Add the screenshot share extension when provisioned";
-          "if" = "vars.IOS_SHARE_EXTENSION == 'true'";
-          env = {
-            APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
-            SHARE_PROVISIONING_PROFILE = "\${{ vars.SHARE_PROVISIONING_PROFILE }}";
-            PROVISIONING_PROFILE = "\${{ vars.PROVISIONING_PROFILE }}";
-            ISLAND_PROVISIONING_PROFILE = islandProfile;
-            IOS_SHARE_MOBILE_PROVISION = "\${{ secrets.IOS_SHARE_MOBILE_PROVISION }}";
-          };
-          run = ''
-            python3 -m venv "$RUNNER_TEMP/share-tools"
-            "$RUNNER_TEMP/share-tools/bin/pip" install PyYAML==6.0.3
-            python3 .github/scripts/install-share-profile.py
-            "$RUNNER_TEMP/share-tools/bin/python" .github/scripts/ios-share-project.py gen/apple/project.yml --version "''${{ steps.qntx.outputs.version }}" --build "''${{ steps.qntx.outputs.version }}.''${{ github.run_number }}"
-          '';
-        }
-        {
-          name = "Generate the signed Xcode project";
-          run = "cd gen/apple && xcodegen generate\n";
-        }
-
-        {
-          name = "Build signed IPA";
-          env = {
-            IOS_CERTIFICATE = "\${{ secrets.IOS_CERTIFICATE }}";
-            IOS_CERTIFICATE_PASSWORD = "\${{ secrets.IOS_CERTIFICATE_PASSWORD }}";
-            IOS_MOBILE_PROVISION = "\${{ secrets.IOS_MOBILE_PROVISION }}";
-            IOS_SHARE_EXTENSION = "\${{ vars.IOS_SHARE_EXTENSION }}";
-            APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
-          };
-          run = ''
-            if [ "$IOS_SHARE_EXTENSION" = "true" ]; then
-              cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
-              python3 .github/scripts/export-share-ipa.py
-            else
-              # The Tauri CLI exports with the app's profile alone, and the
-              # archive carries the island: it is exported here, naming both.
-              cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
-              python3 .github/scripts/export-island-ipa.py
-            fi
-          '';
-        }
-
-        {
-          name = "Locate IPA";
-          id = "ipa";
-          run = ''
-            FOUND=$(find . -name '*.ipa' -type f | head -1)
-            if [ -z "$FOUND" ]; then
-              find gen/apple/build -type f 2>/dev/null
-              echo "no ipa produced"
-              exit 1
-            fi
-            echo "path=$FOUND" >> "$GITHUB_OUTPUT"
-            echo "Found $FOUND"
-          '';
-        }
-
-        {
-          name = "Upload to TestFlight";
-          "if" = reachesAPhone;
-          env = {
-            APPLE_API_KEY = "\${{ secrets.APPLE_API_KEY }}";
-            APPLE_API_ISSUER = "\${{ secrets.APPLE_API_ISSUER }}";
-            APPLE_API_KEY_CONTENT = "\${{ secrets.APPLE_API_KEY_CONTENT }}";
-            # The app's own id at Apple, which altool calls its Apple ID.
-            APPLE_APP_ID = "\${{ vars.APPLE_APP_ID }}";
-            IPA = "\${{ steps.ipa.outputs.path }}";
-          };
-          # The app is named to Apple by its id, and what it is by what the IPA itself says.
-          # --upload-app asked App Store Connect for the id by the bundle id first, and on
-          # 2026-11-13 that question stopped being answered (altool error 19), three runs in
-          # a row, on the commit, Xcode and runner image that uploaded the night before.
-          run = ''
-            test -n "$APPLE_APP_ID"
-            mkdir -p ~/.appstoreconnect/private_keys
-            echo "$APPLE_API_KEY_CONTENT" | base64 --decode \
-              > ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY.p8
-            plist=$(mktemp)
-            unzip -p "$IPA" 'Payload/*.app/Info.plist' > "$plist"
-            bundle=$(plutil -extract CFBundleIdentifier raw "$plist")
-            build=$(plutil -extract CFBundleVersion raw "$plist")
-            short=$(plutil -extract CFBundleShortVersionString raw "$plist")
-            echo "uploading $bundle $short ($build)"
-            xcrun altool --upload-package "$IPA" \
-              --type ios \
-              --apple-id "$APPLE_APP_ID" \
-              --bundle-id "$bundle" \
-              --bundle-version "$build" \
-              --bundle-short-version-string "$short" \
-              --api-key "$APPLE_API_KEY" \
-              --api-issuer "$APPLE_API_ISSUER"
-          '';
-        }
-
-        # altool exits 0 when Apple has the bytes, and nothing after that reached
-        # any log: ten green runs sat in App Store Connect as
-        # MISSING_EXPORT_COMPLIANCE while the phone stayed on build 8. Green
-        # means a tester can install it, or the run is red and says why.
-        {
-          name = "Delivered to testers";
-          "if" = reachesAPhone;
-          env = {
-            APPLE_API_KEY = "\${{ secrets.APPLE_API_KEY }}";
-            APPLE_API_ISSUER = "\${{ secrets.APPLE_API_ISSUER }}";
-            APPLE_API_KEY_CONTENT = "\${{ secrets.APPLE_API_KEY_CONTENT }}";
-            BUILD = "\${{ steps.qntx.outputs.version }}.\${{ github.run_number }}";
-          };
-          run = ''
-            python3 -m venv "$RUNNER_TEMP/asc"
-            "$RUNNER_TEMP/asc/bin/pip" install --quiet 'pyjwt[crypto]' requests
-            "$RUNNER_TEMP/asc/bin/python" .github/scripts/delivered.py wait "$BUILD"
-          '';
-        }
-      ];
-    };
+          }
+          {
+            uses = "oven-sh/setup-bun@v2";
+            "with".bun-version = "1.3.9";
+          }
+          # QNTX-Web's build reads BACKEND_URL and SENTRY_DSN and writes dist/. The
+          # page leaves to the same project the shell does (src/lib.rs): a phone has
+          # no console; a DSN only writes, so it sits here as a literal.
+          {
+            name = "Build the bundle the app carries";
+            working-directory = "qntx-web";
+            env = {
+              BACKEND_URL = backend;
+              SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+            };
+            run = ''
+              bun install --frozen-lockfile
+              bun run build
+            '';
+          }
+          {
+            name = "The app is versioned as QNTX's newest release";
+            run = ''
+              python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "''${{ steps.qntx.outputs.version }}"
+            '';
+          }
+        ];
+        project = [
+          {
+            name = "Add the screenshot share extension when provisioned";
+            "if" = "vars.IOS_SHARE_EXTENSION == 'true'";
+            env = {
+              APPLE_DEVELOPMENT_TEAM = "\${{ secrets.APPLE_DEVELOPMENT_TEAM }}";
+              SHARE_PROVISIONING_PROFILE = "\${{ vars.SHARE_PROVISIONING_PROFILE }}";
+              PROVISIONING_PROFILE = apple.profile;
+              ISLAND_PROVISIONING_PROFILE = apple.island.profile;
+              IOS_SHARE_MOBILE_PROVISION = "\${{ secrets.IOS_SHARE_MOBILE_PROVISION }}";
+            };
+            run = ''
+              python3 -m venv "$RUNNER_TEMP/share-tools"
+              "$RUNNER_TEMP/share-tools/bin/pip" install PyYAML==6.0.3
+              python3 .github/scripts/install-share-profile.py
+              "$RUNNER_TEMP/share-tools/bin/python" .github/scripts/ios-share-project.py gen/apple/project.yml --version "''${{ steps.qntx.outputs.version }}" --build "''${{ steps.qntx.outputs.version }}.''${{ github.run_number }}"
+            '';
+          }
+        ];
+        # The Tauri CLI exports with the app's profile alone, and the archive
+        # carries the island: it is exported naming both.
+        build = ''
+          if [ "$IOS_SHARE_EXTENSION" = "true" ]; then
+            cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
+            python3 .github/scripts/export-share-ipa.py
+          else
+            cargo tauri ios build --archive-only --build-number ''${{ github.run_number }}
+            python3 "$IOS_COMMON/export-island.py"
+          fi
+        '';
+        env.IOS_SHARE_EXTENSION = "\${{ vars.IOS_SHARE_EXTENSION }}";
+      }
+      // {
+        needs = "main";
+      };
   };
 }

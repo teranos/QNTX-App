@@ -10,13 +10,21 @@
           "run": "pip install --quiet 'pyjwt[crypto]' requests"
         },
         {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "ios-common",
+            "ref": "v0.3.0",
+            "repository": "teranos/ios-common"
+          }
+        },
+        {
           "env": {
             "APPLE_API_ISSUER": "${{ secrets.APPLE_API_ISSUER }}",
             "APPLE_API_KEY": "${{ secrets.APPLE_API_KEY }}",
             "APPLE_API_KEY_CONTENT": "${{ secrets.APPLE_API_KEY_CONTENT }}"
           },
           "name": "What App Store Connect holds for nl.sbvh.qntx",
-          "run": "python3 .github/scripts/delivered.py list"
+          "run": "python3 ios-common/apple/delivered.py list"
         }
       ]
     }
