@@ -23,7 +23,7 @@
           "id": "rust",
           "uses": "dtolnay/rust-toolchain@stable",
           "with": {
-            "components": "clippy",
+            "components": "clippy,llvm-tools",
             "targets": "aarch64-apple-ios"
           }
         },
@@ -36,8 +36,8 @@
           }
         },
         {
-          "name": "ios-common v0.3.2",
-          "run": "git clone -q --depth 1 --branch v0.3.2 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
+          "name": "ios-common v0.3.3",
+          "run": "git clone -q --depth 1 --branch v0.3.3 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
         },
         {
           "uses": "actions/checkout@v5",
