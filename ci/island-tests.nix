@@ -5,17 +5,21 @@
 #
 # "cant we make it easier on me, in terms of being able to test most testable mechanical things, before its like, live on my phone ??"
 #
-# The island's own Swift (island/shared, island/app), compiled for the
-# Simulator with what the build pins, and what it decides tested before any
-# build reaches a phone (ci/island-tests). Nothing here reaches TestFlight.
+# The island's own Swift (teranos/ios-common's island/shared and island/app,
+# at the tag Cargo.toml takes the sheet from), compiled for the Simulator with
+# what the build pins, and what it asks of a QNTX node tested before any build
+# reaches a phone (ci/island-tests). Nothing here reaches TestFlight.
+let
+  tag = (builtins.fromTOML (builtins.readFile ../Cargo.toml)).dependencies.sheet.tag;
+in
 {
   name = "Island tests";
 
   on = {
-    pull_request.paths = [ "island/**" "ci/island-tests/**" "ci/island-tests.nix" ".github/workflows/island-tests.yml" ".github/scripts/ci-node.py" ];
+    pull_request.paths = [ "Cargo.toml" "ci/island-tests/**" "ci/island-tests.nix" ".github/workflows/island-tests.yml" ".github/scripts/ci-node.py" ];
     push = {
       branches = [ "main" ];
-      paths = [ "island/**" "ci/island-tests/**" ];
+      paths = [ "Cargo.toml" "ci/island-tests/**" ];
     };
     workflow_dispatch = null;
   };
@@ -26,6 +30,15 @@
     timeout-minutes = 90;
     steps = [
       { uses = "actions/checkout@v5"; }
+      # The island, where it is kept.
+      {
+        uses = "actions/checkout@v5";
+        "with" = {
+          repository = "teranos/ios-common";
+          ref = tag;
+          path = "ios-common";
+        };
+      }
       # A QNTX node beside the Simulator, built from QNTX main, to test the
       # island against what it asks for real (.github/scripts/ci-node.py).
       {

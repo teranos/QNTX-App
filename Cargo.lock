@@ -4484,17 +4484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared_child"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "607549934f6cc26b89cfecfdc46fa90f1e5d1536a68349b0c3a4f9d1c0d37959"
-dependencies = [
- "libc",
- "sigchld",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "share"
 version = "0.1.0"
 dependencies = [
@@ -4506,8 +4495,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared_child"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "607549934f6cc26b89cfecfdc46fa90f1e5d1536a68349b0c3a4f9d1c0d37959"
+dependencies = [
+ "libc",
+ "sigchld",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "sheet"
 version = "0.1.0"
+source = "git+https://github.com/teranos/ios-common?tag=v0.3.3#92069eed2ef33f61e8fbb71450d8a5bd06391420"
 dependencies = [
  "serde",
  "tauri",
@@ -4694,9 +4695,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "swift-rs"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e45c444e496845d3f2a351146bff59aae4975b2280238df1dfaa0c7d1846f38e"
+checksum = "cefd87076fd385308ee4aff597256c902f1fbb4d031de1558efc12f8ffefadd9"
 dependencies = [
  "base64 0.21.7",
  "serde",

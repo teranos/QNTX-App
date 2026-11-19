@@ -47,9 +47,11 @@ The app's page is at a scheme, so a provider's page inside its WebView has no
 Safari session, no autofill and no passkey. On iOS the ceremony runs in the
 sheet the system gives a web sign-in, `ASWebAuthenticationSession`, which is
 backed by Safari's cookies and passkeys and hands the callback URL straight
-back into the app. That is `sheet/`: one command, `run`. Not a plugin in
-the QNTX sense, nothing runs beside the node; it is the App's own Swift,
-registered the way Tauri registers native code. Off iOS the command says
+back into the app. That is the `sheet` of
+[teranos/ios-common](https://github.com/teranos/ios-common), which every app
+takes in: one command, `run`. Not a plugin in the QNTX sense, nothing runs
+beside the node; it is native code, registered the way Tauri registers it,
+at the tag `Cargo.toml` names. Off iOS the command says
 there is no sheet, and the door opens Safari and waits for the `qntx://` deep
 link instead.
 
@@ -63,7 +65,7 @@ link instead.
 
 > and snapshot of course
 
-That is `shake/`, native like `sheet/`. The phone's own accelerometer says
+That is `shake/`, native like the sheet. The phone's own accelerometer says
 when it is shaken, CoreMotion on iOS and SensorManager on Android, and neither
 sits behind a prompt. Each shake reaches the page as the Tauri event `shake`,
 payload `{ "at": <unix ms> }`:
@@ -79,35 +81,43 @@ Off a phone there is no shake, and `snapshot` says it is unsupported.
 
 > THE BATCH IS A LIVE ACTIVITY
 
-That is `island/`. The node starts it, says all it shows and ends it; the app
-draws it, hands the node the tokens Apple gives it, and answers a press. The
-story, what a press is and what it rests on are the node's to say:
+That is ios-common's `island/`. The node starts it, says all it shows and
+ends it; the app draws it, hands the node the tokens Apple gives it, and
+answers a press. The story, what a press is and what it rests on are the
+node's to say:
 [ADR-060](https://github.com/teranos/QNTX/blob/main/docs/adr/ADR-060-What-Waits-On-A-Person-Is-A-Live-Activity.md).
-What is the app's own is in [island/README.md](island/README.md).
+What the island is is ios-common's
+[island/README.md](https://github.com/teranos/ios-common/blob/main/island/README.md);
+whose island it is, QNTX's, is the `island` of `apple.json`. What it asks of a
+QNTX node is tested here (`ci/island-tests`).
 
 ## What the pipeline proves
+
+The pipeline is ios-common's `ci/ios.nix`, which `ci/testflight.nix` passes
+what is QNTX's own: QNTX main, QNTX-Web, the version and the island.
 
 A run is green when App Store Connect says a tester can install the build,
 not when the upload returned. Export compliance is answered in
 `Info.ios.plist`; without it a build sits unanswered and reaches nobody.
-`.github/scripts/delivered.py` is the asking.
+ios-common's `apple/delivered.py` is the asking.
 
 Before anything is uploaded, the build reads back from the app it made what
 that app is: where the node is, that it may have Live Activities, that it
 carries the island and its press, and what it is signed as being allowed
-(`.github/scripts/export-island-ipa.py`). What was written into the project
+(ios-common's `apple/export-island.py`). What was written into the project
 is not what Apple reads, and an app signed without `aps-environment` is not
 uploaded.
 
 ## What signs it
 
-An Apple distribution certificate and an App Store provisioning profile, held
-as secrets here. A build lands in TestFlight and updates itself from there.
+An Apple distribution certificate, held as a secret here, and App Store
+provisioning profiles. A build lands in TestFlight and updates itself from
+there.
 
-The island is its own bundle, signed by its own profile. Apple is asked for
-its App ID and profile with the key CI holds, and each is made where missing
-(`.github/workflows/island-apple.yml`); the profile is the secret
-`IOS_ISLAND_MOBILE_PROVISION`.
+The app and the island are each their own bundle, signed by their own
+profile. Every build asks Apple for the App IDs, their capabilities and both
+profiles with the key CI holds, and each is made where missing (ios-common's
+`apple/apple.py`, reading `apple.json`).
 
 TestFlight is the build that counts. The Android build (`ci/android.nix`)
 waits: it runs only when dispatched by hand.

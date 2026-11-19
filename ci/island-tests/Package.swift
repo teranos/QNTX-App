@@ -1,8 +1,9 @@
 // swift-tools-version:5.9
 // The island's own Swift, compiled and tested in the iPhone Simulator: the
-// same files the app and its widget compile (island/shared, island/app),
-// linked here, with the same Sentry and SacredError the build pins
-// (.github/scripts/ios-project.py).
+// same files the app and its widget compile, teranos/ios-common's island/ at
+// the tag Cargo.toml takes the sheet from, checked out beside this repo as
+// ios-common/ and linked here, with the same Sentry and SacredError the build
+// pins (ios-common's apple/ios-project.py).
 //
 //   xcodebuild test -scheme IslandTests -destination 'platform=iOS Simulator,name=<an iPhone>'
 import PackageDescription

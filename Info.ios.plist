@@ -8,7 +8,7 @@
          Tauri merges this file into the iOS Info.plist on every build. -->
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
-    <!-- An approval on the Dynamic Island (island/): without it ActivityKit
+    <!-- An approval on the Dynamic Island (ios-common's island/): without it ActivityKit
          refuses every Activity.request the app makes. -->
     <key>NSSupportsLiveActivities</key>
     <true/>
