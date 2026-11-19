@@ -10,10 +10,14 @@
         "IOS_SHARE_EXTENSION": "${{ vars.IOS_SHARE_EXTENSION }}"
       },
       "needs": "main",
-      "runs-on": "macos-latest",
+      "runs-on": "xcode-27",
       "steps": [
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Xcode 27.2",
+          "run": "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\nxcrun --sdk iphoneos --show-sdk-version\n"
         },
         {
           "id": "rust",
@@ -32,8 +36,8 @@
           }
         },
         {
-          "name": "ios-common v0.3.0",
-          "run": "git clone -q --depth 1 --branch v0.3.0 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
+          "name": "ios-common v0.3.1",
+          "run": "git clone -q --depth 1 --branch v0.3.1 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
         },
         {
           "uses": "actions/checkout@v5",

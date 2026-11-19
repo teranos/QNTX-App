@@ -11,7 +11,7 @@
           "uses": "actions/checkout@v5",
           "with": {
             "path": "ios-common",
-            "ref": "v0.3.0",
+            "ref": "v0.3.1",
             "repository": "teranos/ios-common"
           }
         },

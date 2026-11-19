@@ -40,7 +40,7 @@ tauri-plugin-deep-link = "=2.4.10"
 # On iOS the ceremony runs in the sheet the system gives a web sign-in, and
 # comes back without leaving the app. Off iOS it says it cannot. teranos/ios-common's,
 # and its tag is also the one ci/*.nix runs ios-common's pipeline and island from.
-sheet = { git = "https://github.com/teranos/ios-common", tag = "v0.3.0" }
+sheet = { git = "https://github.com/teranos/ios-common", tag = "v0.3.1" }
 # What the phone says about its own power, sent to Sentry as gauges.
 power = { path = "power" }
 # The shake a phone feels, and the snapshot of the web view it carries. Off a
