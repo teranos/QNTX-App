@@ -68,7 +68,7 @@
         {
           "env": {
             "BACKEND_URL": "${{ inputs.backend_url || 'https://api.q.sbvh.nl' }}",
-            "SENTRY_DSN": "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992"
+            "SENTRY_DSN": "${{ vars.WEB_SENTRY_DSN }}"
           },
           "name": "Build the bundle the app carries",
           "run": "bun install --frozen-lockfile\nbun run build\n",

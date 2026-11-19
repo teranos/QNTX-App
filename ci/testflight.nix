@@ -142,13 +142,14 @@ in
           }
           # QNTX-Web's build reads BACKEND_URL and SENTRY_DSN and writes dist/. The
           # page leaves to the same project the shell does (src/lib.rs): a phone has
-          # no console; a DSN only writes, so it sits here as a literal.
+          # no console. The DSN is the variable WEB_SENTRY_DSN, as the island's is
+          # ISLAND_SENTRY_DSN.
           {
             name = "Build the bundle the app carries";
             working-directory = "qntx-web";
             env = {
               BACKEND_URL = backend;
-            SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+              SENTRY_DSN = "\${{ vars.WEB_SENTRY_DSN }}";
             };
             run = ''
               bun install --frozen-lockfile
