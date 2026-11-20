@@ -6,7 +6,8 @@
       "minimumSystemVersion": "17.0",
       "frameworks": [
         "chat/ios/Frameworks/GiphyUISDK.xcframework"
-      ]
+      ],
+      "template": "chat/ios/project.yml"
     }
   },
   "app": {
