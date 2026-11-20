@@ -18,7 +18,7 @@
   name = "App idle";
 
   on = {
-    pull_request.paths = [ "ci/boot-iphone.sh" "ci/sim-ready.sh" "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/boot-iphone.sh" "ci/sim-ready.sh" "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" "Cargo.toml" "Cargo.lock" ];
     workflow_dispatch = null;
     # "Schedule per week": what it reads is sent to Sentry, and one run a push
     # is too few to see anything in. Monday, off the hour so it does not queue
@@ -80,9 +80,9 @@
         "with".bun-version = "1.3.3";
       }
       {
-        name = "Fetch tauri-cli 2.11.4";
+        name = "Fetch tauri-cli 2.12.6";
         run = ''
-          curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip
+          curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip
           mkdir -p "$HOME/.cargo/bin"
           unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
           rm cargo-tauri.zip
