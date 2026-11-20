@@ -136,7 +136,11 @@
         "if" = "failure()";
         name = "Why the app is gone, as the simulator's crash report says";
         run = ''
+          for i in $(seq 1 18); do ls ~/Library/Logs/DiagnosticReports/QNTX*.ips >/dev/null 2>&1 && break; sleep 10; done
           python3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true
+          # The app once more, its console attached: a Swift fatal error says its message there.
+          xcrun simctl terminate "$UDID" nl.sbvh.qntx || true
+          timeout 40 xcrun simctl launch --console-pty "$UDID" nl.sbvh.qntx 2>&1 | grep -v '^$' | tail -60 || true
           xcrun simctl spawn "$UDID" log show --last 10m --style compact --predicate 'process == "QNTX" OR eventMessage CONTAINS "QNTX"' 2>/dev/null | grep -iE "dyld|crash|terminat|fatal|abort|Library not loaded" | head -40 || true
         '';
       }
