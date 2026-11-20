@@ -56,7 +56,7 @@
         },
         {
           "name": "Boot an iPhone, with its own keyboard",
-          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nUDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains(\"iOS-26\")) | .key as $rt | .value[] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\nopen \"$(xcode-select -p)/Applications/Simulator.app\" --args -CurrentDeviceUDID \"$UDID\"\n"
+          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nsource ci/boot-iphone.sh\nopen \"$(xcode-select -p)/Applications/Simulator.app\" --args -CurrentDeviceUDID \"$UDID\"\n"
         },
         {
           "name": "A bare page without the viewport line: the web view zooms, and this run sees it",
@@ -98,6 +98,7 @@
   "on": {
     "pull_request": {
       "paths": [
+        "ci/boot-iphone.sh",
         "ci/app-keyboard/**",
         "ci/app-keyboard.nix",
         ".github/workflows/app-keyboard.yml",

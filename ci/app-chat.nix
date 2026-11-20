@@ -11,7 +11,7 @@
   name = "App chat";
 
   on = {
-    pull_request.paths = [ "ci/app-chat/**" "ci/app-chat.nix" ".github/workflows/app-chat.yml" "chat/**" "Cargo.toml" "Cargo.lock" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/boot-iphone.sh" "ci/app-chat/**" "ci/app-chat.nix" ".github/workflows/app-chat.yml" "chat/**" "Cargo.toml" "Cargo.lock" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
     workflow_dispatch = null;
   };
 
@@ -77,10 +77,7 @@
       {
         name = "Boot an iPhone";
         run = ''
-          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS-26")) | .key as $rt | .value[] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')
-          echo "UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
+          bash ci/boot-iphone.sh
         '';
       }
       {

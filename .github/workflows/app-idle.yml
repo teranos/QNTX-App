@@ -66,7 +66,7 @@
         },
         {
           "name": "Boot an iPhone",
-          "run": "UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains(\"iOS-26\")) | .key as $rt | .value[] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+          "run": "bash ci/boot-iphone.sh\n"
         },
         {
           "name": "Sentry's SDK for the sampler",
@@ -112,6 +112,7 @@
   "on": {
     "pull_request": {
       "paths": [
+        "ci/boot-iphone.sh",
         "ci/app-idle/**",
         "ci/app-idle.nix",
         ".github/workflows/app-idle.yml",
