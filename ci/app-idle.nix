@@ -35,7 +35,7 @@
 
   jobs.ios = {
     name = "QNTX-App idle in the iPhone Simulator";
-    runs-on = "macos-15";
+    runs-on = "xcode-27";
     timeout-minutes = 90;
     steps = [
       {
@@ -47,6 +47,10 @@
         run = "sudo mdutil -a -i off";
       }
       { uses = "actions/checkout@v5"; }
+      {
+        name = "Xcode 27.2, as the TestFlight build has: Exyte Chat's Swift packages resolve for iOS there, and not with macos-15's Xcode";
+        run = "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n";
+      }
       {
         uses = "actions/checkout@v5";
         "with" = {
