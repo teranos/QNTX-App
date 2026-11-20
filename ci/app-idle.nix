@@ -98,7 +98,7 @@
         name = "Boot an iPhone";
         run = ''
           RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | sort_by(.version) | last | .identifier')
-          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select(.name | startswith("iPhone"))] | first | .udid')
+          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not))] | first | .udid')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
@@ -137,9 +137,7 @@
         "if" = "failure()";
         name = "Why the app is gone, as the simulator's crash report says";
         run = ''
-          ls -t ~/Library/Logs/DiagnosticReports | head -20
-          last=$(ls -t ~/Library/Logs/DiagnosticReports/QNTX* 2>/dev/null | head -1)
-          if [ -n "$last" ]; then head -c 6000 "$last"; else echo "no crash report of QNTX"; fi
+          python3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true
           xcrun simctl spawn "$UDID" log show --last 10m --style compact --predicate 'process == "QNTX" OR eventMessage CONTAINS "QNTX"' 2>/dev/null | grep -iE "dyld|crash|terminat|fatal|abort|Library not loaded" | head -40 || true
         '';
       }

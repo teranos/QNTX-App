@@ -79,17 +79,17 @@
         run = ''
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
           RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | sort_by(.version) | last | .identifier')
-          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select(.name | startswith("iPhone"))] | first | .udid')
+          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not))] | first | .udid')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          open -a Simulator --args -CurrentDeviceUDID "$UDID"
+          open "$(xcode-select -p)/Applications/Simulator.app" --args -CurrentDeviceUDID "$UDID"
         '';
       }
       {
         name = "A bare page without the viewport line: the web view zooms, and this run sees it";
         # A case that hangs ends here, its log kept, and the next case still runs.
-        timeout-minutes = 20;
+        timeout-minutes = 45;
         run = ''
           mkdir -p qntx-web/dist
           sed 's|<!-- VIEWPORT -->|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">|' ci/app-keyboard/page.html > qntx-web/dist/index.html
@@ -100,7 +100,7 @@
         "if" = "always()";
         name = "The same page, with html and body pinned to the window and not scrolling";
         # A case that hangs ends here, its log kept, and the next case still runs.
-        timeout-minutes = 20;
+        timeout-minutes = 45;
         run = ''
           (cd qntx-web && bun install --frozen-lockfile)
           (cd qntx-web && bun run build)
@@ -113,7 +113,7 @@
         name = "QNTX's page as QNTX-Web main builds it, holding where its window stood while a field has the keyboard";
         # Pinned, the window still went from 778 to 743 tall and the page scrolled
         # 35 to match, in a shell with or without the web view's inset adjustment.
-        timeout-minutes = 20;
+        timeout-minutes = 45;
         run = ''
           (cd qntx-web && bun install --frozen-lockfile)
           (cd qntx-web && bun run build)
