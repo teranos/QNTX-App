@@ -8,3 +8,4 @@
 /android/.tauri
 /android/build
 /target
+/Cargo.lock
