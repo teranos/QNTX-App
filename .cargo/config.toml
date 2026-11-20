@@ -1,0 +1,5 @@
+# The iOS the Swift packages are compiled for. Exyte Chat (chat/) asks for iOS 17,
+# as tauri.ios.conf.json says; without this, a cargo run outside Xcode (CI's clippy)
+# builds them for tauri's default and they do not compile. Xcode sets its own.
+[env]
+IPHONEOS_DEPLOYMENT_TARGET = "17.0"
