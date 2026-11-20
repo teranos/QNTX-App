@@ -134,6 +134,16 @@
         run = "bash ci/app-idle/run.sh launch";
       }
       {
+        "if" = "failure()";
+        name = "Why the app is gone, as the simulator's crash report says";
+        run = ''
+          ls -t ~/Library/Logs/DiagnosticReports | head -20
+          last=$(ls -t ~/Library/Logs/DiagnosticReports/QNTX* 2>/dev/null | head -1)
+          if [ -n "$last" ]; then head -c 6000 "$last"; else echo "no crash report of QNTX"; fi
+          xcrun simctl spawn "$UDID" log show --last 10m --style compact --predicate 'process == "QNTX" OR eventMessage CONTAINS "QNTX"' 2>/dev/null | grep -iE "dyld|crash|terminat|fatal|abort|Library not loaded" | head -40 || true
+        '';
+      }
+      {
         "if" = "always()";
         name = "What was read";
         uses = "actions/upload-artifact@v4";

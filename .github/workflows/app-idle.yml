@@ -89,6 +89,11 @@
           "timeout-minutes": 60
         },
         {
+          "if": "failure()",
+          "name": "Why the app is gone, as the simulator's crash report says",
+          "run": "ls -t ~/Library/Logs/DiagnosticReports | head -20\nlast=$(ls -t ~/Library/Logs/DiagnosticReports/QNTX* 2>/dev/null | head -1)\nif [ -n \"$last\" ]; then head -c 6000 \"$last\"; else echo \"no crash report of QNTX\"; fi\nxcrun simctl spawn \"$UDID\" log show --last 10m --style compact --predicate 'process == \"QNTX\" OR eventMessage CONTAINS \"QNTX\"' 2>/dev/null | grep -iE \"dyld|crash|terminat|fatal|abort|Library not loaded\" | head -40 || true\n"
+        },
+        {
           "if": "always()",
           "name": "What was read",
           "uses": "actions/upload-artifact@v4",
