@@ -9,3 +9,4 @@
 /android/build
 /target
 /Cargo.lock
+/ios/Frameworks

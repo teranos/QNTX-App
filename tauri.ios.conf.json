@@ -3,7 +3,8 @@
   "bundle": {
     "externalBin": null,
     "iOS": {
-      "minimumSystemVersion": "17.0"
+      "minimumSystemVersion": "17.0",
+      "frameworks": ["chat/ios/Frameworks/GiphyUISDK.xcframework"]
     }
   },
   "app": {
