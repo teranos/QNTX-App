@@ -13,6 +13,6 @@
     "trayIcon": null
   },
   "build": {
-    "beforeBuildCommand": "sh chat/ios/giphy.sh"
+    "beforeBuildCommand": "d=$PWD; while [ ! -f \"$d/chat/ios/giphy.sh\" ] && [ \"$d\" != / ]; do d=$(dirname \"$d\"); done; cd \"$d\" && sh chat/ios/giphy.sh"
   }
 }
