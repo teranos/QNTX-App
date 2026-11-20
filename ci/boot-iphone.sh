@@ -5,8 +5,8 @@
 # (_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption), since Tauri's
 # shell has not adopted the scene lifecycle. The xcode-27 runners differ in
 # which runtimes they carry: an iPhone on iOS 26 is used when there is one,
-# made from an iOS 26 runtime when there is that, and the runtime downloaded
-# when there is neither.
+# made from an iOS 26 runtime when there is that, and a runner with neither
+# says so and stops.
 set -euo pipefail
 
 pick() {
@@ -20,11 +20,12 @@ UDID=$(pick)
 if [ "$UDID" = "null" ] || [ -z "$UDID" ]; then
   RUNTIME=$(runtime)
   if [ "$RUNTIME" = "null" ] || [ -z "$RUNTIME" ]; then
-    echo "no iOS 26 runtime on this runner: downloading iOS 26.2"
-    xcodebuild -downloadPlatform iOS -buildVersion 26.2
-    RUNTIME=$(runtime)
+    # A runtime downloaded here (iOS 26.2, 23C52) boots, and then the Simulator
+    # service dies: every simctl after it is "Connection interrupted".
+    echo "::error::this runner carries no iOS 26 Simulator runtime; on iOS 27 every build stops at launch (no scene lifecycle). Run again for another runner."
+    xcrun simctl list runtimes
+    exit 1
   fi
-  test "$RUNTIME" != "null"
   TYPE=$(xcrun simctl list devicetypes -j | jq -r '[.devicetypes[] | select(.name | test("^iPhone 1[67]( Pro)?$"))] | last | .identifier')
   UDID=$(xcrun simctl create "QNTX iPhone" "$TYPE" "$RUNTIME")
 fi
