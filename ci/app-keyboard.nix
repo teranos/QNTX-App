@@ -79,6 +79,16 @@
         run = ''
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
           source ci/boot-iphone.sh
+          # idb taps through SimulatorKit, which it looks for inside Xcode; Xcode 27.2
+          # does not keep it there. Wherever it is, it is linked where idb looks.
+          SK="$(xcode-select -p)/Library/PrivateFrameworks/SimulatorKit.framework"
+          if [ ! -e "$SK" ]; then
+            FOUND=$(find /Library/Developer /Applications /System/Library/PrivateFrameworks -maxdepth 7 -name SimulatorKit.framework -type d 2>/dev/null | grep -v "^$SK" | head -1 || true)
+            echo "SimulatorKit: ''${FOUND:-not found}"
+            test -n "$FOUND"
+            sudo mkdir -p "$(dirname "$SK")"
+            sudo ln -s "$FOUND" "$SK"
+          fi
         '';
       }
       {

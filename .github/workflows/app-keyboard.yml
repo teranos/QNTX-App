@@ -56,7 +56,7 @@
         },
         {
           "name": "Boot an iPhone, with its own keyboard",
-          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nsource ci/boot-iphone.sh\n"
+          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nsource ci/boot-iphone.sh\n# idb taps through SimulatorKit, which it looks for inside Xcode; Xcode 27.2\n# does not keep it there. Wherever it is, it is linked where idb looks.\nSK=\"$(xcode-select -p)/Library/PrivateFrameworks/SimulatorKit.framework\"\nif [ ! -e \"$SK\" ]; then\n  FOUND=$(find /Library/Developer /Applications /System/Library/PrivateFrameworks -maxdepth 7 -name SimulatorKit.framework -type d 2>/dev/null | grep -v \"^$SK\" | head -1 || true)\n  echo \"SimulatorKit: ${FOUND:-not found}\"\n  test -n \"$FOUND\"\n  sudo mkdir -p \"$(dirname \"$SK\")\"\n  sudo ln -s \"$FOUND\" \"$SK\"\nfi\n"
         },
         {
           "name": "A bare page without the viewport line: the web view zooms, and this run sees it",
