@@ -113,6 +113,7 @@
     "pull_request": {
       "paths": [
         "ci/boot-iphone.sh",
+        "ci/sim-ready.sh",
         "ci/app-idle/**",
         "ci/app-idle.nix",
         ".github/workflows/app-idle.yml",

@@ -14,7 +14,7 @@
   name = "App keyboard";
 
   on = {
-    pull_request.paths = [ "ci/boot-iphone.sh" "ci/app-keyboard/**" "ci/app-keyboard.nix" ".github/workflows/app-keyboard.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/boot-iphone.sh" "ci/sim-ready.sh" "ci/app-keyboard/**" "ci/app-keyboard.nix" ".github/workflows/app-keyboard.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
     workflow_dispatch = null;
   };
 
@@ -79,7 +79,6 @@
         run = ''
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
           source ci/boot-iphone.sh
-          open "$(xcode-select -p)/Applications/Simulator.app" --args -CurrentDeviceUDID "$UDID"
         '';
       }
       {

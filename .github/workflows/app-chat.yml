@@ -102,6 +102,7 @@
     "pull_request": {
       "paths": [
         "ci/boot-iphone.sh",
+        "ci/sim-ready.sh",
         "ci/app-chat/**",
         "ci/app-chat.nix",
         ".github/workflows/app-chat.yml",

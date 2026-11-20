@@ -11,7 +11,7 @@
   name = "App chat";
 
   on = {
-    pull_request.paths = [ "ci/boot-iphone.sh" "ci/app-chat/**" "ci/app-chat.nix" ".github/workflows/app-chat.yml" "chat/**" "Cargo.toml" "Cargo.lock" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/boot-iphone.sh" "ci/sim-ready.sh" "ci/app-chat/**" "ci/app-chat.nix" ".github/workflows/app-chat.yml" "chat/**" "Cargo.toml" "Cargo.lock" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
     workflow_dispatch = null;
   };
 

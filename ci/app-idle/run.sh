@@ -19,6 +19,7 @@ APP=$(find gen/apple/build -maxdepth 4 -name '*.app' -path '*arm64-sim*' | head 
 test -n "$APP"
 echo "app: $APP"
 
+bash ci/sim-ready.sh
 xcrun simctl terminate "$UDID" nl.sbvh.qntx || true
 xcrun simctl uninstall "$UDID" nl.sbvh.qntx || true
 xcrun simctl install "$UDID" "$APP"

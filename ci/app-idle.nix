@@ -18,7 +18,7 @@
   name = "App idle";
 
   on = {
-    pull_request.paths = [ "ci/boot-iphone.sh" "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/boot-iphone.sh" "ci/sim-ready.sh" "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
     workflow_dispatch = null;
     # "Schedule per week": what it reads is sent to Sentry, and one run a push
     # is too few to see anything in. Monday, off the hour so it does not queue

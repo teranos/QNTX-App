@@ -22,6 +22,7 @@ test -n "$APP"
 test -d "$APP/Chat_ExyteChat.bundle"
 test -d "$APP/Frameworks/GiphyUISDK.framework"
 
+bash ci/sim-ready.sh
 xcrun simctl terminate "$UDID" nl.sbvh.qntx || true
 xcrun simctl uninstall "$UDID" nl.sbvh.qntx || true
 xcrun simctl install "$UDID" "$APP"
