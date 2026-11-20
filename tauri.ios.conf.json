@@ -4,10 +4,15 @@
     "externalBin": null,
     "iOS": {
       "minimumSystemVersion": "17.0",
-      "frameworks": ["chat/ios/Frameworks/GiphyUISDK.xcframework"]
+      "frameworks": [
+        "chat/ios/Frameworks/GiphyUISDK.xcframework"
+      ]
     }
   },
   "app": {
     "trayIcon": null
+  },
+  "build": {
+    "beforeBuildCommand": "sh chat/ios/giphy.sh"
   }
 }
