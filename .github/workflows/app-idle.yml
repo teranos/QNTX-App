@@ -66,7 +66,7 @@
         },
         {
           "name": "Boot an iPhone",
-          "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+          "run": "UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains(\"iOS\")) | .key as $rt | .value[] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
         },
         {
           "name": "Sentry's SDK for the sampler",
