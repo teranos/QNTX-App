@@ -1,0 +1,24 @@
+<!-- The native chat opened by the page, as QNTX-Web opens it (ts/native-chat.ts), and shown two messages. -->
+<script>
+(function () {
+  function said(title) { document.title = title; console.log('[chat probe] ' + title); }
+  function open() {
+    var tauri = window.__TAURI_INTERNALS__;
+    if (!tauri) { said('no tauri'); return; }
+    var handler = '__CHANNEL__:' + tauri.transformCallback(function () {}, false);
+    var now = Date.now();
+    tauri.invoke('plugin:chat|open', { title: 'Probe', handler: handler })
+      .then(function () {
+        return tauri.invoke('plugin:chat|show', {
+          messages: [
+            { id: '1', text: 'Hello from the probe', mine: true, at: now - 60000 },
+            { id: '2', text: 'And an answer', mine: false, at: now },
+          ],
+          answering: true,
+        });
+      })
+      .then(function () { said('chat opened'); }, function (err) { said('chat failed: ' + err); });
+  }
+  setTimeout(open, 8000);
+})();
+</script>

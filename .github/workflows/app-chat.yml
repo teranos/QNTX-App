@@ -1,0 +1,120 @@
+{
+  "concurrency": {
+    "cancel-in-progress": true,
+    "group": "app-chat-${{ github.ref }}"
+  },
+  "jobs": {
+    "ios": {
+      "name": "QNTX-App's native chat in the iPhone Simulator",
+      "runs-on": "xcode-27",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Xcode 27.2, as the TestFlight build has: Exyte Chat's Swift packages resolve for iOS there, and not with macos-15's Xcode",
+          "run": "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n"
+        },
+        {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
+          }
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "targets": "aarch64-apple-ios-sim, wasm32-unknown-unknown"
+          }
+        },
+        {
+          "uses": "jetli/wasm-pack-action@v0.4.0",
+          "with": {
+            "version": "v0.13.1"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "1.3.3"
+          }
+        },
+        {
+          "name": "Fetch tauri-cli 2.11.4",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.11"
+          }
+        },
+        {
+          "run": "cargo tauri ios init"
+        },
+        {
+          "name": "Boot an iPhone",
+          "run": "UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains(\"iOS-26\")) | .key as $rt | .value[] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+        },
+        {
+          "env": {
+            "BACKEND_URL": "https://api.q.sbvh.nl"
+          },
+          "name": "QNTX's page as the TestFlight build makes it",
+          "run": "bun install --frozen-lockfile\nbun run build\n",
+          "working-directory": "qntx-web"
+        },
+        {
+          "name": "The native chat, opened",
+          "run": "bash ci/app-chat/run.sh",
+          "timeout-minutes": 60
+        },
+        {
+          "if": "failure()",
+          "name": "Why the app is gone, as the simulator's crash report says",
+          "run": "for i in $(seq 1 18); do ls ~/Library/Logs/DiagnosticReports/QNTX*.ips >/dev/null 2>&1 && break; sleep 10; done\npython3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true\n# The app once more, its console attached: a Swift fatal error says its message there.\nxcrun simctl terminate \"$UDID\" nl.sbvh.qntx || true\nperl -e 'alarm 40; exec @ARGV' xcrun simctl launch --console-pty \"$UDID\" nl.sbvh.qntx 2>&1 | grep -v '^$' | tail -60 || true\nxcrun simctl spawn \"$UDID\" log show --last 10m --style compact --predicate 'process == \"QNTX\" OR eventMessage CONTAINS \"QNTX\"' 2>/dev/null | grep -iE \"dyld|crash|terminat|fatal|abort|Library not loaded\" | head -40 || true\n"
+        },
+        {
+          "if": "always()",
+          "name": "What the screen showed",
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "if-no-files-found": "warn",
+            "name": "app-chat",
+            "path": "chat-shots",
+            "retention-days": 14
+          }
+        }
+      ],
+      "timeout-minutes": 90
+    }
+  },
+  "name": "App chat",
+  "on": {
+    "pull_request": {
+      "paths": [
+        "ci/app-chat/**",
+        "ci/app-chat.nix",
+        ".github/workflows/app-chat.yml",
+        "chat/**",
+        "Cargo.toml",
+        "Cargo.lock",
+        "power/**",
+        "shake/**",
+        "src/**",
+        "tauri.conf.json",
+        "tauri.ios.conf.json",
+        "Info.ios.plist"
+      ]
+    },
+    "workflow_dispatch": null
+  }
+}
