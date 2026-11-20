@@ -72,6 +72,8 @@ pub fn run() {
             // The shake, and the snapshot it carries.
             .plugin(shake::init())
             .plugin(share::init())
+            // The chat with an agent, natively: the phone's own text field and keyboard.
+            .plugin(chat::init())
             .invoke_handler(tauri::generate_handler![
                 ios::ios_authenticate_biometric,
                 ios::ios_biometric_available,

@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "The page may open the native chat, show it what was said, and close it"
+permissions = ["allow-open", "allow-show", "allow-close"]
