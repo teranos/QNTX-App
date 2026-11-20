@@ -97,7 +97,7 @@
       {
         name = "Boot an iPhone";
         run = ''
-          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .key as $rt | .value[] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS-26")) | .key as $rt | .value[] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not)) | {rt: $rt, udid}] | sort_by(.rt) | last | .udid')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
