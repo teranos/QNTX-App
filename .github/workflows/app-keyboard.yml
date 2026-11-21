@@ -2,10 +2,14 @@
   "jobs": {
     "ios": {
       "name": "QNTX-App in the iPhone Simulator",
-      "runs-on": "macos-15",
+      "runs-on": "xcode-27",
       "steps": [
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Xcode 27.2, as the TestFlight build has: Exyte Chat's Swift packages resolve for iOS there, and not with macos-15's Xcode",
+          "run": "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n"
         },
         {
           "uses": "actions/checkout@v5",
@@ -34,8 +38,8 @@
           }
         },
         {
-          "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "name": "Fetch tauri-cli 2.12.6",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
         },
         {
           "uses": "actions/setup-python@v5",
@@ -52,24 +56,24 @@
         },
         {
           "name": "Boot an iPhone, with its own keyboard",
-          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nRUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\nopen -a Simulator --args -CurrentDeviceUDID \"$UDID\"\n"
+          "run": "defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false\nsource ci/boot-iphone.sh\n# idb taps through SimulatorKit, which it looks for inside Xcode; Xcode 27.2\n# does not keep it there. Wherever it is, it is linked where idb looks.\nSK=\"$(xcode-select -p)/Library/PrivateFrameworks/SimulatorKit.framework\"\nif [ ! -e \"$SK\" ]; then\n  FOUND=$(find /Library/Developer /Applications /System/Library/PrivateFrameworks -maxdepth 7 -name SimulatorKit.framework -type d 2>/dev/null | grep -v \"^$SK\" | head -1 || true)\n  echo \"SimulatorKit: ${FOUND:-not found}\"\n  test -n \"$FOUND\"\n  sudo mkdir -p \"$(dirname \"$SK\")\"\n  sudo ln -s \"$FOUND\" \"$SK\"\nfi\n"
         },
         {
           "name": "A bare page without the viewport line: the web view zooms, and this run sees it",
           "run": "mkdir -p qntx-web/dist\nsed 's|<!-- VIEWPORT -->|<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">|' ci/app-keyboard/page.html > qntx-web/dist/index.html\nbash ci/app-keyboard/run.sh without\n",
-          "timeout-minutes": 20
+          "timeout-minutes": 45
         },
         {
           "if": "always()",
           "name": "The same page, with html and body pinned to the window and not scrolling",
           "run": "(cd qntx-web && bun install --frozen-lockfile)\n(cd qntx-web && bun run build)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); a=s.index(\"<meta name=\\\"viewport\\\"\"); b=s.index(\">\", a)+1; s=s[:a]+sys.argv[2]+s[b:]; c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+\"<style>html, body { height: 100%; overflow: hidden; }</style>\"+s[c:])' qntx-web/dist/index.html '<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">'\nbash ci/app-keyboard/run.sh pinned\n",
-          "timeout-minutes": 20
+          "timeout-minutes": 45
         },
         {
           "if": "always()",
           "name": "QNTX's page as QNTX-Web main builds it, holding where its window stood while a field has the keyboard",
           "run": "(cd qntx-web && bun install --frozen-lockfile)\n(cd qntx-web && bun run build)\npython3 -c 'import sys; p=sys.argv[1]; s=open(p).read(); c=s.index(\"</head>\"); open(p,\"w\").write(s[:c]+open(sys.argv[2]).read()+s[c:])' qntx-web/dist/index.html ci/app-keyboard/hold-page.html\nbash ci/app-keyboard/run.sh page\n",
-          "timeout-minutes": 20
+          "timeout-minutes": 45
         },
         {
           "if": "always()",
@@ -87,13 +91,15 @@
           }
         }
       ],
-      "timeout-minutes": 110
+      "timeout-minutes": 180
     }
   },
   "name": "App keyboard",
   "on": {
     "pull_request": {
       "paths": [
+        "ci/boot-iphone.sh",
+        "ci/sim-ready.sh",
         "ci/app-keyboard/**",
         "ci/app-keyboard.nix",
         ".github/workflows/app-keyboard.yml",

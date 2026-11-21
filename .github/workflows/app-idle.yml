@@ -6,7 +6,7 @@
   "jobs": {
     "ios": {
       "name": "QNTX-App idle in the iPhone Simulator",
-      "runs-on": "macos-15",
+      "runs-on": "xcode-27",
       "steps": [
         {
           "name": "Spotlight stays out of the way",
@@ -14,6 +14,10 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Xcode 27.2, as the TestFlight build has: Exyte Chat's Swift packages resolve for iOS there, and not with macos-15's Xcode",
+          "run": "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n"
         },
         {
           "uses": "actions/checkout@v5",
@@ -48,8 +52,8 @@
           }
         },
         {
-          "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "name": "Fetch tauri-cli 2.12.6",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
         },
         {
           "uses": "actions/setup-python@v5",
@@ -62,7 +66,7 @@
         },
         {
           "name": "Boot an iPhone",
-          "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+          "run": "bash ci/boot-iphone.sh\n"
         },
         {
           "name": "Sentry's SDK for the sampler",
@@ -85,6 +89,11 @@
           "timeout-minutes": 60
         },
         {
+          "if": "failure()",
+          "name": "Why the app is gone, as the simulator's crash report says",
+          "run": "for i in $(seq 1 18); do ls ~/Library/Logs/DiagnosticReports/QNTX*.ips >/dev/null 2>&1 && break; sleep 10; done\npython3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true\n# The app once more, its console attached: a Swift fatal error says its message there.\nxcrun simctl terminate \"$UDID\" nl.sbvh.qntx || true\nperl -e 'alarm 40; exec @ARGV' xcrun simctl launch --console-pty \"$UDID\" nl.sbvh.qntx 2>&1 | grep -v '^$' | tail -60 || true\nxcrun simctl spawn \"$UDID\" log show --last 10m --style compact --predicate 'process == \"QNTX\" OR eventMessage CONTAINS \"QNTX\"' 2>/dev/null | grep -iE \"dyld|crash|terminat|fatal|abort|Library not loaded\" | head -40 || true\n"
+        },
+        {
           "if": "always()",
           "name": "What was read",
           "uses": "actions/upload-artifact@v4",
@@ -103,6 +112,8 @@
   "on": {
     "pull_request": {
       "paths": [
+        "ci/boot-iphone.sh",
+        "ci/sim-ready.sh",
         "ci/app-idle/**",
         "ci/app-idle.nix",
         ".github/workflows/app-idle.yml",
@@ -111,7 +122,9 @@
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",
-        "Info.ios.plist"
+        "Info.ios.plist",
+        "Cargo.toml",
+        "Cargo.lock"
       ]
     },
     "schedule": [
