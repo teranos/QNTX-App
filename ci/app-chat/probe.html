@@ -8,8 +8,9 @@
     var handler = '__CHANNEL__:' + tauri.transformCallback(function () {}, false);
     var now = Date.now();
     tauri.invoke('plugin:chat|open', { title: 'Probe', handler: handler })
-      .then(function () {
+      .then(function (opened) {
         return tauri.invoke('plugin:chat|show', {
+          owner: opened.owner,
           messages: [
             { id: '1', text: 'Hello from the probe', mine: true, at: now - 60000 },
             { id: '2', text: 'And an answer', mine: false, at: now },

@@ -45,9 +45,16 @@ struct Open {
     handler: Channel<serde_json::Value>,
 }
 
-/// The conversation as it stands, and whether the agent is answering.
+/// Who the chat is: each open hands back an owner, and only that owner's show and close are taken.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Owned {
+    pub owner: String,
+}
+
+/// The conversation as it stands, and whether the agent is answering, shown by the chat's owner.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Shown {
+    pub owner: String,
     pub messages: Vec<Said>,
     pub answering: bool,
 }
@@ -61,13 +68,13 @@ pub struct Chat<R: Runtime> {
 
 impl<R: Runtime> Chat<R> {
     #[cfg(target_os = "ios")]
-    fn open(&self, title: String, handler: Channel<serde_json::Value>) -> Result<(), Error> {
+    fn open(&self, title: String, handler: Channel<serde_json::Value>) -> Result<Owned, Error> {
         self.handle
             .run_mobile_plugin("open", Open { title, handler })
             .map_err(Into::into)
     }
     #[cfg(not(target_os = "ios"))]
-    fn open(&self, _title: String, _handler: Channel<serde_json::Value>) -> Result<(), Error> {
+    fn open(&self, _title: String, _handler: Channel<serde_json::Value>) -> Result<Owned, Error> {
         Err(Error::Unsupported)
     }
 
@@ -83,13 +90,13 @@ impl<R: Runtime> Chat<R> {
     }
 
     #[cfg(target_os = "ios")]
-    fn close(&self) -> Result<(), Error> {
+    fn close(&self, owned: Owned) -> Result<(), Error> {
         self.handle
-            .run_mobile_plugin("close", ())
+            .run_mobile_plugin("close", owned)
             .map_err(Into::into)
     }
     #[cfg(not(target_os = "ios"))]
-    fn close(&self) -> Result<(), Error> {
+    fn close(&self, _owned: Owned) -> Result<(), Error> {
         Err(Error::Unsupported)
     }
 }
@@ -99,25 +106,27 @@ async fn open<R: Runtime>(
     app: AppHandle<R>,
     title: String,
     handler: Channel<serde_json::Value>,
-) -> Result<(), Error> {
+) -> Result<Owned, Error> {
     app.state::<Chat<R>>().open(title, handler)
 }
 
 #[tauri::command]
 async fn show<R: Runtime>(
     app: AppHandle<R>,
+    owner: String,
     messages: Vec<Said>,
     answering: bool,
 ) -> Result<(), Error> {
     app.state::<Chat<R>>().show(Shown {
+        owner,
         messages,
         answering,
     })
 }
 
 #[tauri::command]
-async fn close<R: Runtime>(app: AppHandle<R>) -> Result<(), Error> {
-    app.state::<Chat<R>>().close()
+async fn close<R: Runtime>(app: AppHandle<R>, owner: String) -> Result<(), Error> {
+    app.state::<Chat<R>>().close(Owned { owner })
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -145,14 +154,18 @@ mod tests {
     #[test]
     fn what_is_shown_is_the_messages_and_whether_it_answers() {
         let shown: Result<Shown, _> = serde_json::from_str(
-            r#"{"messages":[{"id":"0","text":"hi","mine":true,"at":1700000000000}],"answering":true}"#,
+            r#"{"owner":"a","messages":[{"id":"0","text":"hi","mine":true,"at":1700000000000}],"answering":true}"#,
         );
         let Ok(shown) = shown else {
             return assert!(false, "the shown shape did not parse");
         };
         assert!(shown.answering);
+        assert_eq!(shown.owner, "a");
         assert_eq!(shown.messages.len(), 1);
-        assert!(shown.messages.iter().all(|said| said.mine && said.text == "hi"));
+        assert!(shown
+            .messages
+            .iter()
+            .all(|said| said.mine && said.text == "hi"));
     }
 
     #[cfg(not(target_os = "ios"))]
@@ -161,7 +174,10 @@ mod tests {
         let chat = Chat::<tauri::Wry> {
             _marker: std::marker::PhantomData,
         };
-        let said = chat.close().err().map(|err| err.to_string());
+        let said = chat
+            .close(Owned { owner: "a".into() })
+            .err()
+            .map(|err| err.to_string());
         assert_eq!(said.as_deref(), Some("the native chat is only on iOS"));
     }
 }

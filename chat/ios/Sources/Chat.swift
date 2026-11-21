@@ -18,8 +18,13 @@ struct SaidArgs: Decodable {
 }
 
 struct ShowArgs: Decodable {
+  let owner: String
   let messages: [SaidArgs]
   let answering: Bool
+}
+
+struct CloseArgs: Decodable {
+  let owner: String
 }
 
 private let you = User(id: "you", name: "You", avatarURL: nil, isCurrentUser: true)
@@ -70,21 +75,33 @@ struct ChatScreen: View {
 // The page opens the chat, shows it what was said, and is told down the
 // channel what was typed ("say"), that the turn is to stop ("stop"), and that
 // it was closed ("closed").
+//
+// One chat, one owner: each open hands back an owner, and only that owner's show
+// and close are taken. An open by another takes the chat, and the one it was
+// taken from is told it is closed.
 class ChatPlugin: Plugin {
   private let conversation = Conversation()
   private var shown: UIViewController?
   private var handler: Channel?
+  private var owner: String?
 
   @objc public func open(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(OpenArgs.self)
     DispatchQueue.main.async {
+      let top = self.shown == nil ? topController() : nil
+      if self.shown == nil && top == nil {
+        invoke.reject("no window to show the chat in")
+        return
+      }
+      if let previous = self.handler {
+        let closed: JsonObject = ["kind": "closed"]
+        previous.send(closed)
+      }
+      let owner = UUID().uuidString
+      self.owner = owner
       self.handler = args.handler
       self.conversation.title = args.title
-      if self.shown == nil {
-        guard let top = topController() else {
-          invoke.reject("no window to show the chat in")
-          return
-        }
+      if let top = top {
         let screen = ChatScreen(
           conversation: self.conversation,
           say: { [weak self] text in
@@ -102,13 +119,17 @@ class ChatPlugin: Plugin {
         top.present(host, animated: true)
         self.shown = host
       }
-      invoke.resolve()
+      invoke.resolve(["owner": owner])
     }
   }
 
   @objc public func show(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(ShowArgs.self)
     DispatchQueue.main.async {
+      guard args.owner == self.owner else {
+        invoke.reject("the chat is not this owner's")
+        return
+      }
       self.conversation.messages = args.messages.map { said in
         Message(
           id: said.id,
@@ -124,12 +145,18 @@ class ChatPlugin: Plugin {
   }
 
   @objc public func close(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(CloseArgs.self)
     DispatchQueue.main.async {
+      guard args.owner == self.owner else {
+        invoke.reject("the chat is not this owner's")
+        return
+      }
       self.dismiss(told: false)
       invoke.resolve()
     }
   }
 
+  // Closed, the chat has no owner: what its last owner shows or closes after this is not taken.
   private func dismiss(told: Bool) {
     shown?.dismiss(animated: true)
     shown = nil
@@ -137,6 +164,8 @@ class ChatPlugin: Plugin {
       let closed: JsonObject = ["kind": "closed"]
       handler?.send(closed)
     }
+    handler = nil
+    owner = nil
   }
 }
 
