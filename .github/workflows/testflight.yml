@@ -36,8 +36,8 @@
           }
         },
         {
-          "name": "ios-common v0.3.3",
-          "run": "git clone -q --depth 1 --branch v0.3.3 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
+          "name": "ios-common v0.3.4",
+          "run": "git clone -q --depth 1 --branch v0.3.4 https://github.com/teranos/ios-common \"$RUNNER_TEMP/ios-common\"\necho \"IOS_COMMON=$RUNNER_TEMP/ios-common/apple\" >> \"$GITHUB_ENV\"\n"
         },
         {
           "uses": "actions/checkout@v5",
@@ -109,8 +109,8 @@
         },
         {
           "if": "steps.signing.outputs.held == 'true'",
-          "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "name": "Fetch tauri-cli 2.12.6",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
         },
         {
           "if": "steps.signing.outputs.held == 'true'",
