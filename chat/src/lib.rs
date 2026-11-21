@@ -38,6 +38,7 @@ pub struct Said {
 }
 
 /// What the chat opens with: its title, and the channel what is typed comes down.
+#[cfg(target_os = "ios")]
 #[derive(Serialize)]
 struct Open {
     title: String,

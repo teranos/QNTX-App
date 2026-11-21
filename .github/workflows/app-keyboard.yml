@@ -91,7 +91,7 @@
           }
         }
       ],
-      "timeout-minutes": 110
+      "timeout-minutes": 180
     }
   },
   "name": "App keyboard",

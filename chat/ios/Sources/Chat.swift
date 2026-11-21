@@ -102,6 +102,7 @@ class ChatPlugin: Plugin {
         top.present(host, animated: true)
         self.shown = host
       }
+      NSLog("chat: opened")
       invoke.resolve()
     }
   }
@@ -119,6 +120,7 @@ class ChatPlugin: Plugin {
         )
       }
       self.conversation.answering = args.answering
+      NSLog("chat: shown %ld messages", args.messages.count)
       invoke.resolve()
     }
   }

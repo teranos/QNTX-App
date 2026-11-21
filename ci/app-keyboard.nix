@@ -21,7 +21,8 @@
   jobs.ios = {
     name = "QNTX-App in the iPhone Simulator";
     runs-on = "xcode-27";
-    timeout-minutes = 110;
+    # Three scenarios of up to 45 minutes each, and the setup and what is kept around them.
+    timeout-minutes = 180;
     steps = [
       { uses = "actions/checkout@v5"; }
       {
