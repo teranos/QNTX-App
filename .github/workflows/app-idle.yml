@@ -6,7 +6,7 @@
   "jobs": {
     "ios": {
       "name": "QNTX-App idle in the iPhone Simulator",
-      "runs-on": "macos-15",
+      "runs-on": "xcode-27",
       "steps": [
         {
           "name": "Spotlight stays out of the way",
@@ -14,6 +14,10 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "Xcode 27.2, as the TestFlight build has",
+          "run": "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n"
         },
         {
           "uses": "actions/checkout@v5",
@@ -48,8 +52,8 @@
           }
         },
         {
-          "name": "Fetch tauri-cli 2.11.4",
-          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
+          "name": "Fetch tauri-cli 2.12.6",
+          "run": "curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip\nmkdir -p \"$HOME/.cargo/bin\"\nunzip -o -q cargo-tauri.zip -d \"$HOME/.cargo/bin\"\nrm cargo-tauri.zip\ncargo tauri --version\n"
         },
         {
           "uses": "actions/setup-python@v5",
@@ -62,7 +66,7 @@
         },
         {
           "name": "Boot an iPhone",
-          "run": "RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == \"iOS\")] | sort_by(.version) | last | .identifier')\nUDID=$(xcrun simctl list devices available -j | jq -r --arg rt \"$RUNTIME\" '[.devices[$rt][] | select(.name | startswith(\"iPhone\"))] | first | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
+          "run": "UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains(\"iOS\")) | .key as $rt | .value[] | select((.name | startswith(\"iPhone\")) and (.name | contains(\"Duo\") | not)) | {rt: $rt, udid, name}] | sort_by(.rt) | last | .udid')\necho \"UDID=$UDID\" >> \"$GITHUB_ENV\"\nxcrun simctl boot \"$UDID\"\nxcrun simctl bootstatus \"$UDID\" -b\n"
         },
         {
           "name": "Sentry's SDK for the sampler",
@@ -83,6 +87,11 @@
           "name": "The app, left alone",
           "run": "bash ci/app-idle/run.sh launch",
           "timeout-minutes": 60
+        },
+        {
+          "if": "failure()",
+          "name": "Why the app is gone, as the simulator's crash report says",
+          "run": "for i in $(seq 1 18); do ls ~/Library/Logs/DiagnosticReports/QNTX*.ips >/dev/null 2>&1 && break; sleep 10; done\npython3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true\n"
         },
         {
           "if": "always()",
@@ -111,7 +120,9 @@
         "src/**",
         "tauri.conf.json",
         "tauri.ios.conf.json",
-        "Info.ios.plist"
+        "Info.ios.plist",
+        "Cargo.toml",
+        "Cargo.lock"
       ]
     },
     "schedule": [

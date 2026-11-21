@@ -6,12 +6,12 @@ edition = "2021"
 links = "power"
 
 [dependencies]
-tauri = "=2.11.5"
+tauri = "=2.12.7"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
 [build-dependencies]
-tauri-plugin = { version = "=2.6.3", features = ["build"] }
+tauri-plugin = { version = "=2.7.4", features = ["build"] }
 
 # The same wall as the shell: this runs on a phone with no log anyone reads.
 [lints.rust]
