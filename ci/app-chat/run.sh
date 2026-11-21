@@ -38,8 +38,10 @@ xcrun simctl io "$UDID" screenshot --display=1 chat-shots/opened.png || xcrun si
 command -v tesseract > /dev/null || brew install tesseract
 tesseract chat-shots/opened.png chat-shots/read
 cat chat-shots/read.txt
+# Compared without spaces: Tesseract 5.5.4 on the runner read "And an answer" as "And ananswer".
+tr -d '[:space:]' < chat-shots/read.txt > chat-shots/read-flat.txt
 for shown in "Probe" "Hello from the probe" "And an answer"; do
-  grep -qF "$shown" chat-shots/read.txt || { echo "the screen does not show: $shown"; exit 1; }
+  grep -qF "${shown// /}" chat-shots/read-flat.txt || { echo "the screen does not show: $shown"; exit 1; }
 done
 echo "the screen shows the native chat, Probe, with both messages"
 
