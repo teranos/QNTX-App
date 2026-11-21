@@ -38,11 +38,20 @@ tauri-plugin-opener = "=2.5.5"
 # into the app on a phone, carrying its ticket.
 tauri-plugin-deep-link = "=2.4.10"
 # On iOS the ceremony runs in the sheet the system gives a web sign-in, and
-# comes back without leaving the app. Off iOS it says it cannot.
-sheet = { path = "sheet" }
+# comes back without leaving the app. Off iOS it says it cannot. teranos/ios-common's,
+# and its tag is also the one ci/*.nix runs ios-common's pipeline and island from.
+sheet = { git = "https://github.com/teranos/ios-common", tag = "v0.3.3" }
+# What the phone says about its own power, sent to Sentry as gauges.
+power = { path = "power" }
+# The shake a phone feels, and the snapshot of the web view it carries. Off a
+# phone the snapshot says it cannot, and nothing shakes.
+shake = { path = "shake" }
+# Incoming screenshots from the iOS share sheet.
+share = { path = "share" }
 # The one log a phone keeps that reaches anyone. The wall denies panics in
 # this crate; what this catches is everything under it that still can.
-sentry = "=0.49.2"
+# rustls, not native-tls: native-tls needs openssl-sys, uncompilable for Android.
+sentry = { version = "=0.49.2", default-features = false, features = ["backtrace", "contexts", "debug-images", "logs", "metrics", "panic", "release-health", "reqwest", "rustls"] }
 
 # Desktop-only plugins (not available on iOS/Android)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

@@ -1,0 +1,4 @@
+"$schema" = "schemas/schema.json"
+[default]
+description = "Read the local screenshot inbox and explicitly acknowledge imported or discarded shares"
+permissions = ["allow-pending", "allow-read-image", "allow-acknowledge"]

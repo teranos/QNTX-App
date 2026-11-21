@@ -1,8 +1,6 @@
-# Mobile UX Vision
+# App Vision
 
-**Status:** Active — core touch interactions implemented, canvas navigation in progress
-
-Mobile is not a compromise. It is a primary exploratory interface. Desktop adds power-user features.
+Mobile is not a compromise. It is a primary exploratory interface.
 
 ## The Story
 

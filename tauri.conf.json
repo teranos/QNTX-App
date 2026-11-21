@@ -14,10 +14,10 @@
     }
   },
   "build": {
-    "beforeDevCommand": "test \"$SKIP_DEV_SERVER\" = \"1\" && echo 'Skipping dev server (already running)' || (cd qntx/web && bun run dev)",
+    "beforeDevCommand": "test \"$SKIP_DEV_SERVER\" = \"1\" && echo 'Skipping dev server (already running)' || (cd qntx-web && bun run dev)",
     "beforeBuildCommand": "",
     "devUrl": "http://localhost:8820",
-    "frontendDist": "qntx/internal/server/dist"
+    "frontendDist": "qntx-web/dist"
   },
   "bundle": {
     "active": true,

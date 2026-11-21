@@ -1,0 +1,281 @@
+{
+  "concurrency": {
+    "cancel-in-progress": false,
+    "group": "checks"
+  },
+  "jobs": {
+    "checked": {
+      "if": "always() && github.event_name == 'schedule' && needs.tag.outputs.fresh == 'true'",
+      "needs": [
+        "tag",
+        "go",
+        "web",
+        "rust",
+        "elements"
+      ],
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "run": "mkdir -p checked && echo '${{ needs.tag.outputs.tag }}' > checked/tag"
+        },
+        {
+          "uses": "actions/cache/save@v4",
+          "with": {
+            "key": "checked-${{ needs.tag.outputs.tag }}",
+            "path": "checked"
+          }
+        }
+      ]
+    },
+    "elements": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX-Web at main",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
+          }
+        },
+        {
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "latest"
+          }
+        },
+        {
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
+        },
+        {
+          "run": "bunx playwright install --with-deps chromium webkit",
+          "working-directory": "qntx-web"
+        },
+        {
+          "env": {
+            "CI": "1",
+            "QNTX_GATE_API": "${{ vars.QNTX_GATE_API }}",
+            "QNTX_GATE_ORIGIN": "${{ vars.QNTX_GATE_ORIGIN }}",
+            "QNTX_GATE_TOKEN": "${{ secrets.QNTX_GATE_TOKEN }}"
+          },
+          "name": "Every element can be reached whole",
+          "run": "bunx playwright test -c browser live.browser.ts --workers 1",
+          "working-directory": "qntx-web"
+        }
+      ]
+    },
+    "go": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "actions/setup-go@v5",
+          "with": {
+            "go-version-file": "qntx/go.mod"
+          }
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@stable",
+          "with": {
+            "targets": "wasm32-unknown-unknown"
+          }
+        },
+        {
+          "name": "What golangci builds against",
+          "run": "cargo install wasm-pack --locked\nmake ats\nmake rust-sqlite\n",
+          "working-directory": "qntx"
+        },
+        {
+          "name": "Build tags",
+          "run": "go run ./internal/tools/tagcheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "Goroutines through sacred",
+          "run": "go run ./internal/tools/spawncheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "Nil is nil",
+          "run": "go run ./internal/tools/nilcheck",
+          "working-directory": "qntx"
+        },
+        {
+          "if": "always()",
+          "name": "golangci, on what changed since the tag before",
+          "run": "before=$(git describe --tags --abbrev=0 --match 'v*' HEAD^)\necho \"golangci reads what changed since $before\"\ngo run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2 run --new-from-rev \"$before\" ./...\n",
+          "working-directory": "qntx"
+        }
+      ]
+    },
+    "rust": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX at ${{ needs.tag.outputs.tag }}",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "fetch-depth": 0,
+            "path": "qntx",
+            "ref": "${{ needs.tag.outputs.tag }}",
+            "repository": "teranos/QNTX"
+          }
+        },
+        {
+          "name": "The checks, laid over QNTX",
+          "run": "rsync -a --exclude README.md checks/ qntx/"
+        },
+        {
+          "uses": "cachix/install-nix-action@v30",
+          "with": {
+            "extra_nix_config": "experimental-features = nix-command flakes\n"
+          }
+        },
+        {
+          "name": "Formatting",
+          "run": "nix develop --command cargo fmt --all --check",
+          "working-directory": "qntx"
+        },
+        {
+          "env": {
+            "RUSTFLAGS": "-Dwarnings"
+          },
+          "if": "always()",
+          "name": "Clippy",
+          "run": "nix develop --command cargo clippy --workspace --exclude ats-duckdb --exclude qntx-reduce-plugin --all-targets",
+          "working-directory": "qntx"
+        }
+      ]
+    },
+    "tag": {
+      "outputs": {
+        "fresh": "${{ github.event_name == 'workflow_dispatch' || steps.seen.outputs.cache-hit != 'true' }}",
+        "tag": "${{ steps.newest.outputs.tag }}"
+      },
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "env": {
+            "ASKED": "${{ inputs.ref }}",
+            "EVENT": "${{ github.event_name }}"
+          },
+          "id": "newest",
+          "name": "QNTX's newest tag, or the ref a dispatch names",
+          "run": "if [ \"$EVENT\" = workflow_dispatch ]; then\n  echo \"tag=$ASKED\" >> \"$GITHUB_OUTPUT\"\n  echo \"The dispatch asks for $ASKED\"\n  exit 0\nfi\nnewest=$(git ls-remote --tags --refs https://github.com/teranos/QNTX 'v*' | cut -f2 | cut -d/ -f3 | sort -V | tail -1)\necho \"tag=$newest\" >> \"$GITHUB_OUTPUT\"\necho \"QNTX's newest tag is $newest\"\n"
+        },
+        {
+          "id": "seen",
+          "if": "github.event_name == 'schedule'",
+          "name": "Whether it was checked",
+          "uses": "actions/cache/restore@v4",
+          "with": {
+            "key": "checked-${{ steps.newest.outputs.tag }}",
+            "lookup-only": true,
+            "path": "checked"
+          }
+        }
+      ]
+    },
+    "web": {
+      "if": "needs.tag.outputs.fresh == 'true'",
+      "needs": "tag",
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "name": "QNTX-Web at main",
+          "uses": "actions/checkout@v5",
+          "with": {
+            "path": "qntx-web",
+            "repository": "teranos/QNTX-Web"
+          }
+        },
+        {
+          "name": "The web checks, laid over QNTX-Web",
+          "run": "rsync -a checks/web/ qntx-web/"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v2",
+          "with": {
+            "bun-version": "latest"
+          }
+        },
+        {
+          "run": "bun install --frozen-lockfile",
+          "working-directory": "qntx-web"
+        },
+        {
+          "name": "The web bans",
+          "run": "bun x eslint ts --max-warnings 0",
+          "working-directory": "qntx-web"
+        },
+        {
+          "if": "always()",
+          "name": "Text size is the package's",
+          "run": "bun run font-size-ban.ts",
+          "working-directory": "qntx-web"
+        },
+        {
+          "if": "always()",
+          "name": "The bans' own tests",
+          "run": "bun test font-size-ban.test.ts ts/table-cell.lint.test.ts",
+          "working-directory": "qntx-web"
+        }
+      ]
+    }
+  },
+  "name": "checks",
+  "on": {
+    "schedule": [
+      {
+        "cron": "17 * * * *"
+      }
+    ],
+    "workflow_dispatch": {
+      "inputs": {
+        "ref": {
+          "description": "The QNTX ref to check: main, a tag or a commit",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  }
+}

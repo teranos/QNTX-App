@@ -3,4 +3,10 @@ bin/
 gen/
 qntx/
 qntx
+qntx-web/
 __pycache__/
+controls/
+
+# Swift package checks
+.build/
+.swiftpm/

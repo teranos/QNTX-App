@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "The page may take a snapshot of the web view the shake points at"
+permissions = ["allow-snapshot"]

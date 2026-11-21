@@ -8,8 +8,25 @@
          Tauri merges this file into the iOS Info.plist on every build. -->
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <!-- An approval on the Dynamic Island (ios-common's island/): without it ActivityKit
+         refuses every Activity.request the app makes. -->
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <!-- qntx:// from Safari: without this the phone answered "The application
+         required to open that link can't be found." -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>nl.sbvh.qntx</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>qntx</string>
+            </array>
+        </dict>
+    </array>
 
-    <!-- The brow (QNTX web/ts/brow.ts) is the node's status line in the
+    <!-- The brow (QNTX-Web ts/brow.ts) is the node's status line in the
          iPhone's unsafe top region, level with the Dynamic Island:
          "The shell's only part is granting the territory: status bar hidden,
           webview edge-to-edge."

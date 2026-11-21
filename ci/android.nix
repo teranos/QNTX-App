@@ -1,0 +1,260 @@
+# The android workflow, emitted from this and never edited by hand: nix eval --json --file ci/android.nix | jq . > .github/workflows/android.yml
+# JSON is YAML, so GitHub reads the emitted file as it is.
+let
+  backendUrl = "https://api.q.sbvh.nl";
+  ndkVersion = "27.0.12077973";
+in
+{
+  name = "android";
+
+  run-name = "android \${{ github.ref_name }} \${{ inputs.ground }}";
+
+  # No store to update itself from here, so the build is the release: a tagged GitHub Release carrying the signed APK, which is what the app's own in-app updater will come to check against.
+  #
+  # The Android build waits: it runs only when dispatched by hand. A push builds TestFlight (ci/testflight.nix) and nothing else.
+  # "disable the android build, make it so there is no doubt that the testflight build is what i care about, i might want to enable the android build in the future, but the android build isnt critical now"
+  # To have it build on push again, put back under `on`, as testflight.nix has it:
+  #   push.paths-ignore = [ "checks/**" "ci/checks.nix" ".github/workflows/checks.yml" ];
+  # and emit the yml (line 1).
+  on = {
+    workflow_dispatch.inputs = {
+      backend_url = {
+        description = "API origin baked into the bundle";
+        type = "string";
+        default = backendUrl;
+      };
+      ground = {
+        description = "the performance and rite that dispatched this";
+        type = "string";
+        default = "";
+      };
+      # "and web version tag should trigger mobile build": the tag of QNTX-Web the page is built from.
+      web_ref = {
+        description = "the QNTX-Web ref the page is built from: a tag, or main";
+        type = "string";
+        default = "main";
+      };
+    };
+  };
+
+  jobs = {
+    main = {
+      runs-on = "ubuntu-latest";
+      outputs.sha = "\${{ steps.main.outputs.sha }}";
+      steps = [
+        {
+          name = "Where main is";
+          id = "main";
+          run = ''
+            sha=$(git ls-remote https://github.com/teranos/QNTX refs/heads/main | cut -f1)
+            test -n "$sha"
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "main is $sha"
+          '';
+        }
+      ];
+    };
+
+    build = {
+      needs = "main";
+      runs-on = "ubuntu-latest";
+      permissions.contents = "write";
+      steps = [
+        { uses = "actions/checkout@v5"; }
+
+        {
+          uses = "actions/checkout@v5";
+          "with" = {
+            repository = "teranos/QNTX";
+            ref = "\${{ needs.main.outputs.sha }}";
+            path = "qntx";
+            fetch-depth = 0;
+            fetch-tags = true;
+          };
+        }
+
+        # The page comes from QNTX-Web main:
+        # "web needs to leave the repo"
+        # Its bun install fetches the browser wasm from QNTX's release.
+        {
+          uses = "actions/checkout@v5";
+          "with" = {
+            repository = "teranos/QNTX-Web";
+            ref = "\${{ inputs.web_ref || 'main' }}";
+            path = "qntx-web";
+          };
+        }
+
+        {
+          name = "What main is";
+          id = "qntx";
+          working-directory = "qntx";
+          run = ''
+            built=$(git describe --tags --match 'v*')
+            version=$(git tag -l 'v*' | sort -V | tail -1)
+            test -n "$built" && test -n "$version"
+            echo "built=$built" >> "$GITHUB_OUTPUT"
+            echo "version=''${version#v}" >> "$GITHUB_OUTPUT"
+            echo "QNTX_TAG=$built" >> "$GITHUB_ENV"
+            echo "building $built as $version"
+          '';
+        }
+
+        {
+          uses = "dtolnay/rust-toolchain@stable";
+          id = "rust";
+          "with" = {
+            targets = "aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android";
+            components = "clippy";
+          };
+        }
+
+        {
+          uses = "oven-sh/setup-bun@v2";
+          "with".bun-version = "1.3.9";
+        }
+
+        {
+          uses = "actions/setup-java@v4";
+          "with" = {
+            distribution = "temurin";
+            java-version = "21";
+          };
+        }
+
+        {
+          name = "The SDK cargo tauri android needs (android-actions/setup-android asks for a package Google stopped shipping)";
+          run = ''
+            SDK_ROOT="$HOME/android-sdk"
+            curl -sSL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            mkdir -p "$SDK_ROOT/cmdline-tools"
+            unzip -q cmdline-tools.zip -d "$SDK_ROOT/cmdline-tools"
+            mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+            rm cmdline-tools.zip
+            echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+            echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+            echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+            echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" --licenses > /dev/null
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-36" "build-tools;35.0.0" "ndk;${ndkVersion}"
+            echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/${ndkVersion}" >> "$GITHUB_ENV"
+          '';
+        }
+
+        {
+          name = "The shell compiled last time";
+          uses = "actions/cache@v4";
+          "with" = {
+            path = "target";
+            key = "shell-android-\${{ steps.rust.outputs.cachekey }}-\${{ hashFiles('Cargo.lock', 'qntx/crates/**') }}";
+            restore-keys = ''
+              shell-android-''${{ steps.rust.outputs.cachekey }}-
+            '';
+          };
+        }
+
+        # QNTX-Web's build reads BACKEND_URL and SENTRY_DSN and writes dist/.
+        {
+          name = "Build the bundle the app carries";
+          working-directory = "qntx-web";
+          env = {
+            BACKEND_URL = "\${{ inputs.backend_url || '${backendUrl}' }}";
+            SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
+          };
+          run = ''
+            bun install --frozen-lockfile
+            bun run build
+          '';
+        }
+
+        {
+          name = "The lib answers for every error";
+          run = ''
+            NDK_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+            export CC_aarch64_linux_android="$NDK_BIN/aarch64-linux-android24-clang"
+            export AR_aarch64_linux_android="$NDK_BIN/llvm-ar"
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_BIN/aarch64-linux-android24-clang"
+            cargo clippy --lib --target aarch64-linux-android
+          '';
+        }
+
+        {
+          name = "Fetch tauri-cli 2.11.4";
+          run = ''
+            curl -sSL -o cargo-tauri.tgz https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-x86_64-unknown-linux-gnu.tgz
+            mkdir -p "$HOME/.cargo/bin"
+            tar -xzf cargo-tauri.tgz -C "$HOME/.cargo/bin"
+            rm cargo-tauri.tgz
+            cargo tauri --version
+          '';
+        }
+
+        {
+          name = "The app is versioned as QNTX's newest release";
+          run = ''
+            python3 -c 'import json,sys; p="tauri.conf.json"; c=json.load(open(p)); c["version"]=sys.argv[1]; json.dump(c,open(p,"w"),indent=2); print("version", c["version"])' "''${{ steps.qntx.outputs.version }}"
+          '';
+        }
+
+        {
+          name = "The signing key, from the secret it lives in";
+          env = {
+            ANDROID_KEYSTORE_BASE64 = "\${{ secrets.ANDROID_KEYSTORE_BASE64 }}";
+            ANDROID_KEYSTORE_PASSWORD = "\${{ secrets.ANDROID_KEYSTORE_PASSWORD }}";
+          };
+          run = ''
+            mkdir -p "$HOME/.keystores/qntx-app"
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$HOME/.keystores/qntx-app/upload-keystore.jks"
+            {
+              echo "password=$ANDROID_KEYSTORE_PASSWORD"
+              echo "keyAlias=upload"
+              echo "storeFile=$HOME/.keystores/qntx-app/upload-keystore.jks"
+            } > "$HOME/.keystores/qntx-app/keystore.properties"
+          '';
+        }
+
+        { run = "cargo tauri android init"; }
+
+        # init writes this file fresh every run, and tauri's template has no
+        # signingConfig at all, so the patch goes on after init and before build.
+        {
+          name = "Sign against the keystore, which the template knows nothing of";
+          run = "python3 .github/scripts/android-signing.py gen/android/app/build.gradle.kts";
+        }
+
+        {
+          name = "Build signed APK";
+          run = "cargo tauri android build --apk";
+        }
+
+        # apksigner is the gate: green here means a phone accepts it.
+        {
+          name = "Locate APK, and refuse an unsigned one";
+          id = "apk";
+          run = ''
+            APK=gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+            if [ ! -f "$APK" ]; then
+              find gen/android -name '*.apk' -type f
+              echo "no apk at $APK"
+              exit 1
+            fi
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+            echo "path=$APK" >> "$GITHUB_OUTPUT"
+            echo "Found $APK"
+          '';
+        }
+
+        {
+          name = "Publish the release the updater will find";
+          env.GH_TOKEN = "\${{ github.token }}";
+          run = ''
+            tag="android-''${{ steps.qntx.outputs.version }}.''${{ github.run_number }}"
+            gh release create "$tag" "''${{ steps.apk.outputs.path }}" \
+              --title "$tag" \
+              --notes "Built from ''${{ steps.qntx.outputs.built }}"
+          '';
+        }
+      ];
+    };
+  };
+}
