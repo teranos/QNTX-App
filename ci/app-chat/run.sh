@@ -28,12 +28,13 @@ bash ci/sim-ready.sh
 xcrun simctl terminate "$UDID" nl.sbvh.qntx || true
 xcrun simctl uninstall "$UDID" nl.sbvh.qntx || true
 xcrun simctl install "$UDID" "$APP"
+LAUNCHED=$(date '+%Y-%m-%d %H:%M:%S')
 xcrun simctl launch "$UDID" nl.sbvh.qntx
 sleep 40
 
 mkdir -p chat-shots
 xcrun simctl io "$UDID" screenshot --display=1 chat-shots/opened.png || xcrun simctl io "$UDID" screenshot chat-shots/opened.png
-said=$(xcrun simctl spawn "$UDID" log show --last 5m --style compact --predicate 'eventMessage BEGINSWITH "chat: "' || true)
+said=$(xcrun simctl spawn "$UDID" log show --start "$LAUNCHED" --style compact --predicate 'eventMessage BEGINSWITH "chat: "' || true)
 echo "$said"
 echo "$said" | grep -q "chat: opened" || { echo "the plugin did not say it opened the chat"; exit 1; }
 echo "$said" | grep -q "chat: shown 2 messages" || { echo "the plugin did not say it showed the two messages"; exit 1; }
