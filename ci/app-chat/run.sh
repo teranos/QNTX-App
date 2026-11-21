@@ -2,8 +2,10 @@
 # The app as the phone runs it, booted in the iPhone Simulator, with the native
 # chat opened by the page (probe.html) and shown two messages. Passes when the
 # screen shows the chat (its title, Probe) with both messages, read off the
-# screenshot by macOS's Vision (read.swift), and the app is still running
-# forty seconds after launch; the screen and what was read are kept.
+# screenshot by Tesseract, and the app is still running forty seconds after
+# launch; the screen and what was read are kept. (What the plugin logs reaches
+# neither the app's console nor `simctl spawn log show`, and macOS's Vision
+# stops on this runner with nilError.)
 #
 # Run from the QNTX-App checkout, with QNTX beside it at qntx/ and the page the
 # app is to carry already in qntx-web/dist.
@@ -33,7 +35,8 @@ sleep 40
 
 mkdir -p chat-shots
 xcrun simctl io "$UDID" screenshot --display=1 chat-shots/opened.png || xcrun simctl io "$UDID" screenshot chat-shots/opened.png
-xcrun swift ci/app-chat/read.swift chat-shots/opened.png > chat-shots/read.txt
+command -v tesseract > /dev/null || brew install tesseract
+tesseract chat-shots/opened.png chat-shots/read
 cat chat-shots/read.txt
 for shown in "Probe" "Hello from the probe" "And an answer"; do
   grep -qF "$shown" chat-shots/read.txt || { echo "the screen does not show: $shown"; exit 1; }
