@@ -25,5 +25,26 @@
             </array>
         </dict>
     </array>
+    <!-- The scene lifecycle: on iOS 27 UIKit stops an app built with the iOS 27
+         SDK at launch without it (_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption).
+         Tauri 2.12's tao answers with its own scene delegate, TaoSceneDelegate,
+         once this is declared. -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+        <key>UISceneConfigurations</key>
+        <dict>
+            <key>UIWindowSceneSessionRoleApplication</key>
+            <array>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Default Configuration</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>TaoSceneDelegate</string>
+                </dict>
+            </array>
+        </dict>
+    </dict>
 </dict>
 </plist>

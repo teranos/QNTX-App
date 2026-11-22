@@ -18,7 +18,7 @@
   name = "App idle";
 
   on = {
-    pull_request.paths = [ "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" ];
+    pull_request.paths = [ "ci/app-idle/**" "ci/app-idle.nix" ".github/workflows/app-idle.yml" "power/**" "shake/**" "src/**" "tauri.conf.json" "tauri.ios.conf.json" "Info.ios.plist" "Cargo.toml" "Cargo.lock" ];
     workflow_dispatch = null;
     # "Schedule per week": what it reads is sent to Sentry, and one run a push
     # is too few to see anything in. Monday, off the hour so it does not queue
@@ -35,7 +35,7 @@
 
   jobs.ios = {
     name = "QNTX-App idle in the iPhone Simulator";
-    runs-on = "macos-15";
+    runs-on = "xcode-27";
     timeout-minutes = 90;
     steps = [
       {
@@ -47,6 +47,10 @@
         run = "sudo mdutil -a -i off";
       }
       { uses = "actions/checkout@v5"; }
+      {
+        name = "Xcode 27.2, as the TestFlight build has";
+        run = "sudo xcode-select -s /Applications/Xcode_27.2.app\nxcodebuild -version\n";
+      }
       {
         uses = "actions/checkout@v5";
         "with" = {
@@ -76,9 +80,9 @@
         "with".bun-version = "1.3.3";
       }
       {
-        name = "Fetch tauri-cli 2.11.4";
+        name = "Fetch tauri-cli 2.12.6";
         run = ''
-          curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.11.4/cargo-tauri-aarch64-apple-darwin.zip
+          curl -sSL -o cargo-tauri.zip https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v2.12.6/cargo-tauri-aarch64-apple-darwin.zip
           mkdir -p "$HOME/.cargo/bin"
           unzip -o -q cargo-tauri.zip -d "$HOME/.cargo/bin"
           rm cargo-tauri.zip
@@ -93,8 +97,7 @@
       {
         name = "Boot an iPhone";
         run = ''
-          RUNTIME=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | sort_by(.version) | last | .identifier')
-          UDID=$(xcrun simctl list devices available -j | jq -r --arg rt "$RUNTIME" '[.devices[$rt][] | select(.name | startswith("iPhone"))] | first | .udid')
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .key as $rt | .value[] | select((.name | startswith("iPhone")) and (.name | contains("Duo") | not)) | {rt: $rt, udid, name}] | sort_by(.rt) | last | .udid')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
@@ -128,6 +131,14 @@
         # so it sits here as a literal.
         env.SENTRY_DSN = "https://a67b1d3869b2fadc7a314746a35039f4@o4511990405464064.ingest.de.sentry.io/4512033476902992";
         run = "bash ci/app-idle/run.sh launch";
+      }
+      {
+        "if" = "failure()";
+        name = "Why the app is gone, as the simulator's crash report says";
+        run = ''
+          for i in $(seq 1 18); do ls ~/Library/Logs/DiagnosticReports/QNTX*.ips >/dev/null 2>&1 && break; sleep 10; done
+          python3 ci/app-idle/crash.py ~/Library/Logs/DiagnosticReports || true
+        '';
       }
       {
         "if" = "always()";
