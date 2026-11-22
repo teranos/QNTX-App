@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// 「[Fable 5.2] swift-tools-version:5.3」
 import PackageDescription
 let package = Package(name: "share", platforms: [.iOS(.v14)], products: [
     .library(name: "share", type: .static, targets: ["share"])

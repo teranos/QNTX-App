@@ -7,7 +7,7 @@ struct ShareID: Decodable { let id: String }
 struct ImageID: Decodable { let id: String; let imageId: String }
 
 class Share: Plugin {
-    // Serialize reads and acknowledgements, off the main/UI thread.
+    // 「[Fable 5.2] Serialize reads and acknowledgements, off the main/UI thread.」
     private let work = DispatchQueue(label: "nl.sbvh.qntx.share-inbox")
 
     private func inbox() throws -> Inbox {

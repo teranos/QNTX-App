@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#「[Fable 5.2] !/usr/bin/env bash」
 set -euo pipefail
 swift test --package-path share/ios/InboxCore
-# Compile the real extension against the iOS SDK without distribution credentials.
+# 「[Fable 5.2] Compile the real extension against the iOS SDK without distribution credentials.」
 mkdir -p gen/share-check
 cat > gen/share-check/project.yml <<'YAML'
 name: ShareCheck

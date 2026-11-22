@@ -1,4 +1,4 @@
-//! Durable iOS share inbox. Reading does not consume; acknowledge explicitly.
+//! 「[Fable 5.2] Durable iOS share inbox. Reading does not consume; acknowledge explicitly.」
 use serde::{Deserialize, Serialize};
 use tauri::{plugin::{Builder, TauriPlugin}, AppHandle, Manager, Runtime};
 

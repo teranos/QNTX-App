@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#「[Fable 5.2] !/usr/bin/env python3」
 """Tauri 2.11.4 exports only the host profile; export both targets explicitly."""
 from pathlib import Path
 import subprocess
